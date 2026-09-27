@@ -21,6 +21,10 @@ public static class PipelineExecutionModule
             options.UseNpgsql(connectionString));
         builder.Services.AddScoped<PipelineExecutionDbContext>();
         builder.Services.AddScoped<PipelineRunStarter>();
+        builder.Services.AddScoped<IPipelineRunStarter>(sp =>
+            sp.GetRequiredService<PipelineRunStarter>());
+        builder.Services.AddScoped<IRunMonitor>(sp =>
+            sp.GetRequiredService<PipelineRunStarter>());
         builder.Services.AddScoped<CancelRunHandler>();
         builder.Services.AddScoped<RetryTaskHandler>();
         builder.Services.AddHostedService<ExecutionWorker>();

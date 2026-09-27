@@ -37,6 +37,7 @@ public class PipelineRun
     public PipelineRunStatus Status { get; set; }
     public Guid CreatedBy { get; set; }
     public string TriggerKind { get; set; } = "manual";
+    public string? TriggerPayloadJson { get; set; }
     public string EdgesJson { get; set; } = "[]";
     public string? Error { get; set; }
     public DateTime CreatedAt { get; set; }

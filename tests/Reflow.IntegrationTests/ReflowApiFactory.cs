@@ -7,6 +7,7 @@ using Npgsql;
 using Reflow.Modules.Identity.Persistence;
 using Reflow.Modules.PipelineExecution.Persistence;
 using Reflow.Modules.Pipelines.Persistence;
+using Reflow.Modules.Triggers.Persistence;
 using Xunit;
 
 namespace Reflow.IntegrationTests;
@@ -66,6 +67,11 @@ public class ReflowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 EnsureSchema(pipelines, "pipelines", "Pipelines");
             using (var execution = new PipelineExecutionDbContext(Options<PipelineExecutionDbContext>()))
                 EnsureSchema(execution, "pipeline_execution", "PipelineRuns");
+            using (var triggers = new TriggersDbContext(Options<TriggersDbContext>()))
+            {
+                EnsureSchema(triggers, "triggers", "Triggers");
+                EnsureSchema(triggers, "triggers", "WebhookEvents");
+            }
 
             _initialized = true;
         }

@@ -13,8 +13,10 @@ using Reflow.Modules.Pipelines.Features.UpdatePipeline;
 using Reflow.Modules.Pipelines.Features.ValidatePipeline;
 using Reflow.Modules.Pipelines.Features.Versions;
 using Reflow.Modules.PipelineExecution.Snapshots;
+using Reflow.Modules.Pipelines.Features.Access;
 using Reflow.Modules.Pipelines.Features.Snapshots;
 using Reflow.Modules.Pipelines.Persistence;
+using Reflow.Modules.Triggers;
 
 namespace Reflow.Modules.Pipelines;
 
@@ -31,6 +33,7 @@ public static class PipelinesModule
         builder.Services.AddScoped<UpdatePipelineHandler>();
         builder.Services.AddScoped<PublishPipelineHandler>();
         builder.Services.AddScoped<IPipelineSnapshotProvider, PipelineSnapshotProvider>();
+        builder.Services.AddScoped<IPipelineAccessChecker, PipelineAccessChecker>();
     }
 
     public static void MapEndpoints(WebApplication app)

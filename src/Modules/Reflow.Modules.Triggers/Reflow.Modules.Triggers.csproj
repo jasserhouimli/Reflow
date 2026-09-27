@@ -11,8 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FluentValidation" Version="12.1.1" />
-    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageReference Include="Cronos" Version="0.12.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
   </ItemGroup>
@@ -20,7 +19,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Reflow.Infrastructure\Reflow.Infrastructure.csproj" />
     <ProjectReference Include="..\Reflow.Modules.PipelineExecution\Reflow.Modules.PipelineExecution.csproj" />
-    <ProjectReference Include="..\Reflow.Modules.Triggers\Reflow.Modules.Triggers.csproj" />
   </ItemGroup>
 
 </Project>

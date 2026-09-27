@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Reflow.Infrastructure.Results;
 using Reflow.Modules.PipelineExecution.Domain;
 using Reflow.Modules.PipelineExecution.Persistence;
@@ -6,13 +7,57 @@ using Reflow.Modules.PipelineExecution.Snapshots;
 
 namespace Reflow.Modules.PipelineExecution.Features.StartRun;
 
+public interface IPipelineRunStarter
+{
+    Task<Result<Guid>> StartRunAsync(
+        Guid pipelineId,
+        Guid ownerId,
+        string triggerKind,
+        string? triggerPayloadJson,
+        CancellationToken ct);
+}
+
+public interface IRunMonitor
+{
+    Task<int> CountActiveRunsAsync(Guid pipelineId, CancellationToken ct);
+}
+
 public class PipelineRunStarter(
     PipelineExecutionDbContext db,
-    IPipelineSnapshotProvider snapshots)
+    IPipelineSnapshotProvider snapshots) : IPipelineRunStarter, IRunMonitor
 {
+    public const int MaxTriggerPayloadChars = 512 * 1024;
+
+    public async Task<int> CountActiveRunsAsync(Guid pipelineId, CancellationToken ct) =>
+        await db.PipelineRuns.CountAsync(
+            r => r.PipelineId == pipelineId
+                && (r.Status == PipelineRunStatus.Queued || r.Status == PipelineRunStatus.Running), ct);
+
     public async Task<Result<Guid>> StartRunAsync(
-        Guid pipelineId, Guid ownerId, string triggerKind, CancellationToken ct)
+        Guid pipelineId, Guid ownerId, string triggerKind, CancellationToken ct) =>
+        await StartRunAsync(pipelineId, ownerId, triggerKind, null, ct);
+
+    public async Task<Result<Guid>> StartRunAsync(
+        Guid pipelineId,
+        Guid ownerId,
+        string triggerKind,
+        string? triggerPayloadJson,
+        CancellationToken ct)
     {
+        if (triggerPayloadJson is not null)
+        {
+            if (triggerPayloadJson.Length > MaxTriggerPayloadChars)
+                return Result<Guid>.Failure("Trigger payload too large", 413);
+            try
+            {
+                System.Text.Json.JsonDocument.Parse(triggerPayloadJson);
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return Result<Guid>.Failure("Trigger payload must be JSON", 400);
+            }
+        }
+
         var snapshot = await snapshots.GetPublishedSnapshotAsync(pipelineId, ownerId, ct);
         if (!snapshot.IsSuccess)
             return Result<Guid>.Failure(snapshot.Error!, snapshot.StatusCode);
@@ -27,6 +72,7 @@ public class PipelineRunStarter(
             Status = PipelineRunStatus.Running,
             CreatedBy = ownerId,
             TriggerKind = triggerKind,
+            TriggerPayloadJson = triggerPayloadJson,
             EdgesJson = JsonSerializer.Serialize(snapshot.Value.Edges),
             CreatedAt = now,
             StartedAt = now,

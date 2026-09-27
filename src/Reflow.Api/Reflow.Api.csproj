@@ -26,6 +26,7 @@
     <ProjectReference Include="..\Modules\Reflow.Modules.Pipelines\Reflow.Modules.Pipelines.csproj" />
     <ProjectReference Include="..\Modules\Reflow.Modules.NodeTypes\Reflow.Modules.NodeTypes.csproj" />
     <ProjectReference Include="..\Modules\Reflow.Modules.PipelineExecution\Reflow.Modules.PipelineExecution.csproj" />
+    <ProjectReference Include="..\Modules\Reflow.Modules.Triggers\Reflow.Modules.Triggers.csproj" />
     <ProjectReference Include="..\Reflow.Infrastructure\Reflow.Infrastructure.csproj" />
   </ItemGroup>
 
