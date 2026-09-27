@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Reflow.Modules.DataProcessing;
 using Reflow.Modules.NodeTypes.Abstractions;
 using Reflow.Modules.NodeTypes.CsvRead;
+using Reflow.Modules.NodeTypes.DataSql;
 using Reflow.Modules.NodeTypes.Filter;
 using Reflow.Modules.NodeTypes.JsonRead;
 using Reflow.Modules.NodeTypes.Transform;
@@ -18,6 +19,7 @@ public static class NodeTypesModule
         DataProcessingModule.Register(builder);
         builder.Services.AddSingleton<NodeTypeRegistry>();
         builder.Services.AddSingleton<INodeHandler, CsvReadHandler>();
+        builder.Services.AddSingleton<INodeHandler, DataSqlHandler>();
         builder.Services.AddSingleton<INodeHandler, JsonReadHandler>();
         builder.Services.AddSingleton<INodeHandler, FilterHandler>();
         builder.Services.AddSingleton<INodeHandler, TransformHandler>();
