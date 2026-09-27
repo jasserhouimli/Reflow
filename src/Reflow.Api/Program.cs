@@ -2,7 +2,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Reflow.Infrastructure;
 using Reflow.Infrastructure.Middleware;
-using Reflow.Modules.DataProcessing;
+using Reflow.Modules.NodeTypes;
 using Reflow.Modules.Identity;
 using Reflow.Modules.Pipelines;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -25,7 +25,7 @@ builder.Services.AddReflowInfrastructure();
 
 IdentityModule.Register(builder);
 PipelinesModule.Register(builder);
-DataProcessingModule.Register(builder);
+NodeTypesModule.Register(builder);
 
 builder.Services.AddAuthentication(options =>
 {
@@ -137,6 +137,7 @@ app.UseAuthorization();
 
 IdentityModule.MapEndpoints(app);
 PipelinesModule.MapEndpoints(app);
+NodeTypesModule.MapEndpoints(app);
 
 // Liveness + Postgres reachability. No auth, no rate limiting: supervisors,
 // CI and dev scripts all poll this to know the backend is truly ready.
