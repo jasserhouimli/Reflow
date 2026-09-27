@@ -2,6 +2,7 @@
   <Folder Name="/src/" />
   <Folder Name="/src/Modules/">
     <Project Path="src/Modules/Reflow.Modules.Identity/Reflow.Modules.Identity.csproj" />
+    <Project Path="src/Modules/Reflow.Modules.DataProcessing/Reflow.Modules.DataProcessing.csproj" />
   </Folder>
   <Project Path="src/Reflow.Api/Reflow.Api.csproj" />
   <Project Path="src/Reflow.Infrastructure/Reflow.Infrastructure.csproj" />

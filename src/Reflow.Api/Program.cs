@@ -2,6 +2,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Reflow.Infrastructure;
 using Reflow.Infrastructure.Middleware;
+using Reflow.Modules.DataProcessing;
 using Reflow.Modules.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
@@ -22,6 +23,7 @@ builder.Host.UseSerilog();
 builder.Services.AddReflowInfrastructure();
 
 IdentityModule.Register(builder);
+DataProcessingModule.Register(builder);
 
 builder.Services.AddAuthentication(options =>
 {
