@@ -13,7 +13,6 @@ public static class WebhookToken
         var bytes = System.Text.Encoding.UTF8.GetBytes(token);
         return Convert.ToHexString(SHA256.HashData(bytes));
     }
-
     private static string Base64Url(byte[] bytes) =>
         Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 }
