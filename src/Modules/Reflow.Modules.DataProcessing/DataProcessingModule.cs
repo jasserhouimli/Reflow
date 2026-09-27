@@ -15,7 +15,6 @@ public static class DataProcessingModule
     public static void Register(WebApplicationBuilder builder)
     {
         builder.Services.AddSingleton<IDataReader, CsvCodec>();
-        builder.Services.AddSingleton<IDataQueryEngine, InMemoryQueryEngine>();
         builder.Services.AddSingleton<IDataWriter, FrameWriter>();
         builder.Services.AddSingleton<IDataArtifactStore, LocalArtifactStore>();
         builder.Services.AddSingleton<IDatasetCatalog, InMemoryDatasetCatalog>();

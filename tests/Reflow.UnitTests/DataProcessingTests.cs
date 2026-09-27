@@ -1,4 +1,5 @@
 using Reflow.Modules.DataProcessing.Abstractions;
+using Reflow.Modules.DataProcessing.DuckDb;
 using Reflow.Modules.DataProcessing.InMemory;
 using Xunit;
 
@@ -7,7 +8,7 @@ namespace Reflow.UnitTests;
 public class DataProcessingTests
 {
     private readonly CsvCodec _reader = new();
-    private readonly InMemoryQueryEngine _engine = new();
+    private readonly DuckDbSqlEngine _sql = new();
     private readonly FrameWriter _writer = new();
 
     [Fact]
@@ -55,30 +56,24 @@ public class DataProcessingTests
     }
 
     [Fact]
-    public void Filter_EqualsAndContains()
+    public void Sql_FiltersAndProjects()
     {
         var frame = _reader.FromCsv("name,age\nAda,36\nGrace,85", ',', true);
-        Assert.Single(_engine.Filter(frame, "name", "equals", "Ada").Rows);
-        Assert.Equal(2, _engine.Filter(frame, "name", "contains", "a").Rows.Count);
+        var filtered = _sql.Query(new[] { ("input", frame) },
+            "SELECT * FROM input WHERE age = 'Ada' OR name = 'Ada'");
+        Assert.Single(filtered.Rows);
+        var projected = _sql.Query(new[] { ("input", frame) },
+            "SELECT age FROM input LIMIT 1 OFFSET 1");
+        Assert.Equal(new[] { "age" }, projected.Columns);
+        Assert.Equal("85", projected.Rows[0][0]);
     }
 
     [Fact]
-    public void Filter_UnknownColumn_Throws()
+    public void Sql_UnknownColumn_Throws()
     {
         var frame = _reader.FromCsv("a\n1", ',', true);
-        Assert.Throws<InvalidOperationException>(
-            () => _engine.Filter(frame, "nope", "equals", "1"));
-    }
-
-    [Fact]
-    public void Select_And_Limit_SliceRows()
-    {
-        var frame = _reader.FromCsv("a,b,c\n1,2,3\n4,5,6", ',', true);
-        var selected = _engine.Select(frame, new[] { "c", "a" });
-        Assert.Equal(new[] { "c", "a" }, selected.Columns);
-        var limited = _engine.Limit(frame, 1, 1);
-        Assert.Single(limited.Rows);
-        Assert.Equal("4", limited.Rows[0][0]);
+        Assert.ThrowsAny<Exception>(() => _sql.Query(
+            new[] { ("input", frame) }, "SELECT * FROM input WHERE nope = '1'"));
     }
 
     [Fact]

@@ -1,8 +1,8 @@
 namespace Reflow.Modules.DataProcessing.Abstractions;
 
 /// <summary>
-/// In-memory tabular frame. All cells are strings or null; typed operations
-/// (DuckDB, Arrow) sit behind <see cref="IDataQueryEngine"/> later.
+/// In-memory tabular frame. All cells are strings or null; analytical compute
+/// runs in DuckDB behind ISqlEngine; ingestion codecs produce frames.
 /// </summary>
 public sealed class Frame
 {

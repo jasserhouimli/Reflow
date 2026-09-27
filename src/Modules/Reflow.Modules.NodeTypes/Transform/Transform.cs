@@ -1,17 +1,21 @@
 using System.Text.Json;
 using Reflow.Modules.DataProcessing.Abstractions;
+using Reflow.Modules.DataProcessing.DuckDb;
 using Reflow.Modules.NodeTypes.Abstractions;
 
 namespace Reflow.Modules.NodeTypes.Transform;
 
-/// <summary>Reshape columns: select, drop, rename. Names refer to input columns.</summary>
+/// <summary>
+/// Reshape columns: select, drop, rename. Compiles to one DuckDB SELECT
+/// (EXCLUDE / RENAME). Names refer to input columns.
+/// </summary>
 public sealed class TransformHandler : INodeHandler
 {
     public const string NodeType = "transform";
 
-    private readonly IDataQueryEngine _engine;
+    private readonly ISqlEngine _sql;
 
-    public TransformHandler(IDataQueryEngine engine) => _engine = engine;
+    public TransformHandler(ISqlEngine sql) => _sql = sql;
 
     public string Type => NodeType;
 
@@ -54,39 +58,49 @@ public sealed class TransformHandler : INodeHandler
 
         var frame = inputs[0];
 
-        if (config.TryGetProperty("select", out var s) && s.ValueKind == JsonValueKind.Array)
-        {
-            var cols = s.EnumerateArray()
+        var select = config.TryGetProperty("select", out var s) && s.ValueKind == JsonValueKind.Array
+            ? s.EnumerateArray()
                 .Where(e => e.ValueKind == JsonValueKind.String)
                 .Select(e => e.GetString()!)
-                .ToList();
-            if (cols.Count > 0)
-                frame = _engine.Select(frame, cols);
-        }
+                .ToList()
+            : new List<string>();
+        var drop = config.TryGetProperty("dropColumns", out var d) && d.ValueKind == JsonValueKind.Array
+            ? d.EnumerateArray()
+                .Where(e => e.ValueKind == JsonValueKind.String)
+                .Select(e => e.GetString()!)
+                .ToList()
+            : new List<string>();
+        var renames = config.TryGetProperty("renames", out var r) && r.ValueKind == JsonValueKind.Object
+            ? r.EnumerateObject()
+                .Where(p => p.Value.ValueKind == JsonValueKind.String)
+                .ToDictionary(p => p.Name, p => p.Value.GetString()!,
+                    StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        if (config.TryGetProperty("dropColumns", out var d) && d.ValueKind == JsonValueKind.Array)
+        string projection;
+        if (select.Count > 0)
         {
-            var drop = new HashSet<string>(
-                d.EnumerateArray()
-                    .Where(e => e.ValueKind == JsonValueKind.String)
-                    .Select(e => e.GetString()!),
-                StringComparer.OrdinalIgnoreCase);
-            var keep = frame.Columns.Where(c => !drop.Contains(c)).ToList();
-            frame = _engine.Select(frame, keep);
+            var dropSet = new HashSet<string>(drop, StringComparer.OrdinalIgnoreCase);
+            var keep = select.Where(c => !dropSet.Contains(c)).ToList();
+            if (keep.Count == 0)
+                throw new InvalidOperationException("transform select leaves no columns");
+            projection = string.Join(", ", keep.Select(SqlPredicate.Column));
         }
-
-        if (config.TryGetProperty("renames", out var r) && r.ValueKind == JsonValueKind.Object)
+        else if (drop.Count > 0)
         {
-            var map = r.EnumerateObject()
-                .ToDictionary(p => p.Name, p => p.Value.GetString() ?? p.Name,
-                    StringComparer.OrdinalIgnoreCase);
-            frame = new Frame
-            {
-                Columns = frame.Columns.Select(c => map.TryGetValue(c, out var to) ? to : c).ToList(),
-                Rows = frame.Rows.Select(row => row.ToList()).ToList(),
-            };
+            projection = $"* EXCLUDE ({string.Join(", ", drop.Select(SqlPredicate.Column))})";
+        }
+        else
+        {
+            projection = "*";
         }
 
-        return Task.FromResult(frame);
+        var rename = renames.Count > 0
+            ? $" RENAME ({string.Join(", ",
+                renames.Select(kv => $"{SqlPredicate.Column(kv.Key)} AS {SqlPredicate.Column(kv.Value)}"))})"
+            : string.Empty;
+
+        var sql = $"SELECT {projection}{rename} FROM input";
+        return Task.FromResult(_sql.Query(new[] { ("input", frame) }, sql));
     }
 }

@@ -1,9 +1,13 @@
 using System.Text.Json;
 using Reflow.Modules.DataProcessing.Abstractions;
+using Reflow.Modules.DataProcessing.DuckDb;
 using Reflow.Modules.NodeTypes.Abstractions;
 
 namespace Reflow.Modules.NodeTypes.Filter;
 
+/// <summary>
+/// Compiles the predicate to DuckDB SQL. No C# row logic: the engine filters.
+/// </summary>
 public sealed class FilterHandler : INodeHandler
 {
     public const string NodeType = "filter";
@@ -14,9 +18,9 @@ public sealed class FilterHandler : INodeHandler
         "greaterThan", "lessThan", "isEmpty", "isNotEmpty",
     };
 
-    private readonly IDataQueryEngine _engine;
+    private readonly ISqlEngine _sql;
 
-    public FilterHandler(IDataQueryEngine engine) => _engine = engine;
+    public FilterHandler(ISqlEngine sql) => _sql = sql;
 
     public string Type => NodeType;
 
@@ -60,10 +64,10 @@ public sealed class FilterHandler : INodeHandler
         var value = config.TryGetProperty("value", out var v)
             ? v.ValueKind == JsonValueKind.String ? v.GetString() : v.GetRawText()
             : null;
-        return Task.FromResult(_engine.Filter(
-            inputs[0],
+        var sql = $"SELECT * FROM input WHERE {SqlPredicate.Build(
             config.GetProperty("column").GetString()!,
             config.GetProperty("operator").GetString()!,
-            value));
+            value)}";
+        return Task.FromResult(_sql.Query(new[] { ("input", inputs[0]) }, sql));
     }
 }

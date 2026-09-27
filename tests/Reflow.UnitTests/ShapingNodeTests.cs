@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Reflow.Modules.DataProcessing.Abstractions;
+using Reflow.Modules.DataProcessing.DuckDb;
 using Reflow.Modules.DataProcessing.InMemory;
 using Reflow.Modules.NodeTypes.Filter;
 using Reflow.Modules.NodeTypes.JsonRead;
@@ -54,7 +55,7 @@ public class ShapingNodeTests
     [Fact]
     public async Task Filter_KeepsMatchingRows()
     {
-        var handler = new FilterHandler(new InMemoryQueryEngine());
+        var handler = new FilterHandler(new DuckDbSqlEngine());
         var frame = await handler.ExecuteAsync(
             new[] { Csv("name,age\nAda,36\nGrace,85") },
             Config("{\"column\":\"age\",\"operator\":\"greaterThan\",\"value\":\"40\"}"),
@@ -64,9 +65,20 @@ public class ShapingNodeTests
     }
 
     [Fact]
+    public async Task Filter_ContainsIsCaseInsensitive()
+    {
+        var handler = new FilterHandler(new DuckDbSqlEngine());
+        var frame = await handler.ExecuteAsync(
+            new[] { Csv("name\nAda\nBob") },
+            Config("{\"column\":\"name\",\"operator\":\"contains\",\"value\":\"AD\"}"),
+            CancellationToken.None);
+        Assert.Single(frame.Rows);
+    }
+
+    [Fact]
     public void Filter_BadOperator_Fails()
     {
-        var handler = new FilterHandler(new InMemoryQueryEngine());
+        var handler = new FilterHandler(new DuckDbSqlEngine());
         Assert.Contains(handler.ValidateConfig(Config("{\"column\":\"a\",\"operator\":\"fuzzy\"}")),
             e => e.Contains("operator", StringComparison.OrdinalIgnoreCase));
     }
@@ -74,7 +86,7 @@ public class ShapingNodeTests
     [Fact]
     public async Task Transform_SelectDropRename()
     {
-        var handler = new TransformHandler(new InMemoryQueryEngine());
+        var handler = new TransformHandler(new DuckDbSqlEngine());
         var input = Csv("a,b,c\n1,2,3");
 
         var selected = await handler.ExecuteAsync(
@@ -94,7 +106,7 @@ public class ShapingNodeTests
     [Fact]
     public void Transform_EmptyConfig_Fails()
     {
-        var handler = new TransformHandler(new InMemoryQueryEngine());
+        var handler = new TransformHandler(new DuckDbSqlEngine());
         Assert.NotEmpty(handler.ValidateConfig(Config("{}")));
     }
 }
