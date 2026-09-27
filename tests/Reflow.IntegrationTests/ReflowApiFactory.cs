@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using Reflow.Modules.Identity.Persistence;
+using Reflow.Modules.Pipelines.Persistence;
 using Xunit;
 
 namespace Reflow.IntegrationTests;
@@ -60,6 +61,8 @@ public class ReflowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             // per context instead, guarded by an existence check.
             using (var identity = new IdentityDbContext(Options<IdentityDbContext>()))
                 EnsureSchema(identity, "identity", "users");
+            using (var pipelines = new PipelinesDbContext(Options<PipelinesDbContext>()))
+                EnsureSchema(pipelines, "pipelines", "Pipelines");
 
             _initialized = true;
         }
