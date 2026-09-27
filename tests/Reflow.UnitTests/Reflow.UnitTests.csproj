@@ -18,6 +18,7 @@
     <ProjectReference Include="..\..\src\Modules\Reflow.Modules.DataProcessing\Reflow.Modules.DataProcessing.csproj" />
     <ProjectReference Include="..\..\src\Modules\Reflow.Modules.Pipelines\Reflow.Modules.Pipelines.csproj" />
     <ProjectReference Include="..\..\src\Modules\Reflow.Modules.NodeTypes\Reflow.Modules.NodeTypes.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Reflow.Modules.PipelineExecution\Reflow.Modules.PipelineExecution.csproj" />
   </ItemGroup>
 
 </Project>

@@ -5,6 +5,7 @@
     <Project Path="src/Modules/Reflow.Modules.DataProcessing/Reflow.Modules.DataProcessing.csproj" />
     <Project Path="src/Modules/Reflow.Modules.Pipelines/Reflow.Modules.Pipelines.csproj" />
     <Project Path="src/Modules/Reflow.Modules.NodeTypes/Reflow.Modules.NodeTypes.csproj" />
+    <Project Path="src/Modules/Reflow.Modules.PipelineExecution/Reflow.Modules.PipelineExecution.csproj" />
   </Folder>
   <Project Path="src/Reflow.Api/Reflow.Api.csproj" />
   <Project Path="src/Reflow.Infrastructure/Reflow.Infrastructure.csproj" />
