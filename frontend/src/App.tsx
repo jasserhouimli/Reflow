@@ -2,7 +2,7 @@ import { useState, useEffect, Component, type ReactNode } from "react"
 import { auth } from "@/api/client"
 import { LoginPage } from "@/pages/LoginPage"
 import { DashboardPage } from "@/pages/DashboardPage"
-import { WorkflowEditorPage } from "@/pages/WorkflowEditorPage"
+import { PipelineEditorPage } from "@/pages/PipelineEditorPage"
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null }
@@ -29,7 +29,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 
 export default function App() {
   const [user, setUser] = useState<{ id: string; email: string; displayName: string } | null>(null)
-  const [selectedWorkflow, setSelectedWorkflow] = useState<string | null>(null)
+  const [selectedPipeline, setSelectedPipeline] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -42,24 +42,24 @@ export default function App() {
   const handleLogout = async () => {
     await auth.logout()
     setUser(null)
-    setSelectedWorkflow(null)
+    setSelectedPipeline(null)
   }
 
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>
 
   if (!user) return <LoginPage onLogin={() => auth.me().then(setUser)} />
 
-  if (selectedWorkflow) {
+  if (selectedPipeline) {
     return (
-      <ErrorBoundary key={selectedWorkflow}>
-        <WorkflowEditorPage workflowId={selectedWorkflow} onBack={() => setSelectedWorkflow(null)} onLogout={handleLogout} />
+      <ErrorBoundary key={selectedPipeline}>
+        <PipelineEditorPage pipelineId={selectedPipeline} onBack={() => setSelectedPipeline(null)} onLogout={handleLogout} />
       </ErrorBoundary>
     )
   }
 
   return (
     <ErrorBoundary>
-      <DashboardPage user={user} onSelectWorkflow={setSelectedWorkflow} onLogout={handleLogout} />
+      <DashboardPage user={user} onSelectPipeline={setSelectedPipeline} onLogout={handleLogout} />
     </ErrorBoundary>
   )
 }
