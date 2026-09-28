@@ -1,13 +1,19 @@
 import { useState, useEffect, useCallback } from "react"
 import {
+  ReactFlow, Background, Controls, Handle, Position,
+  applyNodeChanges, applyEdgeChanges, addEdge,
+  type Node, type Edge, type NodeChange, type EdgeChange, type Connection,
+  type NodeProps,
+} from "@xyflow/react"
+import "@xyflow/react/dist/style.css"
+import {
   pipelines, runs, triggers, nodeTypes,
   RUN_STATUSES, TASK_STATUSES,
-  type PipelineDetail, type PipelineNode, type PipelineEdge,
+  type PipelineDetail, type PipelineEdge,
   type NodeDefinition, type PipelineRun, type TaskRun, type RunLog, type TriggerItem,
 } from "@/api/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 
 interface Props {
   pipelineId: string
@@ -15,22 +21,50 @@ interface Props {
   onLogout: () => void
 }
 
-const emptyNode = (type: string, n: number): PipelineNode => ({
-  nodeId: `n${n}`, nodeType: type, configJson: "{}",
-  label: null, positionX: 0, positionY: 0,
-})
+type FlowNodeData = {
+  label: string
+  nodeType: string
+  configJson: string
+  status?: number
+} & Record<string, unknown>
+
+function PipelineNodeView({ data, selected }: NodeProps) {
+  const d = data as unknown as FlowNodeData
+  return (
+    <div className={`rounded-md border bg-card px-3 py-2 shadow-sm min-w-36 ${selected ? "ring-2 ring-primary" : ""}`}>
+      <Handle type="target" position={Position.Left} />
+      <div className="text-xs font-medium">{d.label}</div>
+      <div className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 inline-block mt-1">{d.nodeType}</div>
+      {d.status !== undefined && d.status !== 0 && (
+        <div className="text-[10px] mt-1 text-muted-foreground">{TASK_STATUSES[d.status]}</div>
+      )}
+      <Handle type="source" position={Position.Right} />
+    </div>
+  )
+}
+
+const nodeTypesMap = { pipelineNode: PipelineNodeView }
+
+const toFlow = (d: PipelineDetail): Node[] =>
+  d.nodes.map(n => ({
+    id: n.nodeId,
+    type: "pipelineNode",
+    position: { x: n.positionX, y: n.positionY },
+    data: { label: n.label || n.nodeId, nodeType: n.nodeType, configJson: n.configJson },
+  }))
+
+const toFlowEdges = (edges: PipelineEdge[]): Edge[] =>
+  edges.map((e, i) => ({ id: `e${i}-${e.sourceNodeId}-${e.targetNodeId}`, source: e.sourceNodeId, target: e.targetNodeId }))
 
 export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
   const [detail, setDetail] = useState<PipelineDetail | null>(null)
   const [defs, setDefs] = useState<NodeDefinition[]>([])
   const [name, setName] = useState("")
-  const [nodes, setNodes] = useState<PipelineNode[]>([])
-  const [edges, setEdges] = useState<PipelineEdge[]>([])
+  const [nodes, setNodes] = useState<Node[]>([])
+  const [edges, setEdges] = useState<Edge[]>([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [msg, setMsg] = useState("")
   const [err, setErr] = useState("")
-  const [newType, setNewType] = useState("")
-  const [edgeFrom, setEdgeFrom] = useState("")
-  const [edgeTo, setEdgeTo] = useState("")
 
   const [runList, setRunList] = useState<PipelineRun[]>([])
   const [runId, setRunId] = useState<string | null>(null)
@@ -50,7 +84,8 @@ export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
   const reload = useCallback(async () => {
     try {
       const d = await pipelines.get(pipelineId)
-      setDetail(d); setName(d.name); setNodes(d.nodes); setEdges(d.edges)
+      setDetail(d); setName(d.name)
+      setNodes(toFlow(d)); setEdges(toFlowEdges(d.edges))
       setRunList(await runs.list(pipelineId))
       setTriggerList(await triggers.list(pipelineId))
     } catch (e) { fail(e) }
@@ -69,6 +104,8 @@ export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
         const [t, l] = await Promise.all([runs.tasks(runId), runs.logs(runId)])
         if (!alive) return
         setTasks(t); setLogs(l)
+        const byNode = new Map(t.map(x => [x.nodeId, x.status] as const))
+        setNodes(prev => prev.map(n => ({ ...n, data: { ...n.data, status: byNode.get(n.id) } })))
         const r = await runs.get(runId)
         if (!alive) return
         setRunList(prev => prev.map(x => x.id === runId ? r : x))
@@ -80,10 +117,45 @@ export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
     return () => { alive = false; clearInterval(timer) }
   }, [runId])
 
+  const onNodesChange = useCallback(
+    (changes: NodeChange[]) => setNodes(ns => applyNodeChanges(changes, ns) as Node[]), [])
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange[]) => setEdges(es => applyEdgeChanges(changes, es)), [])
+  const onConnect = useCallback(
+    (c: Connection) => setEdges(es => addEdge(c, es)), [])
+
+  const onDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    const type = e.dataTransfer.getData("application/reflow-nodetype")
+    if (!type) return
+    const bounds = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const position = { x: e.clientX - bounds.left - 70, y: e.clientY - bounds.top - 30 }
+    const id = `n${Date.now().toString(36)}`
+    setNodes(ns => [...ns, {
+      id, type: "pipelineNode", position,
+      data: { label: id, nodeType: type, configJson: "{}" },
+    }])
+  }, [])
+
+  const selected = nodes.find(n => n.id === selectedId)
+  const patchSelected = (patch: Partial<FlowNodeData>) => {
+    if (!selectedId) return
+    setNodes(ns => ns.map(n => n.id === selectedId ? { ...n, data: { ...n.data, ...patch } } : n))
+  }
+
   const save = async () => {
     try {
-      nodes.forEach(n => { JSON.parse(n.configJson) });
-      await pipelines.update(pipelineId, { name, nodes, edges })
+      const outNodes = nodes.map(n => {
+        const d = n.data as unknown as FlowNodeData
+        JSON.parse(d.configJson)
+        return {
+          nodeId: n.id, nodeType: d.nodeType, configJson: d.configJson,
+          label: d.label === n.id ? null : d.label,
+          positionX: Math.round(n.position.x), positionY: Math.round(n.position.y),
+        }
+      })
+      const outEdges = edges.map(e => ({ sourceNodeId: e.source, targetNodeId: e.target }))
+      await pipelines.update(pipelineId, { name, nodes: outNodes, edges: outEdges })
       say("Saved"); reload()
     } catch (e) { fail(e) }
   }
@@ -109,18 +181,10 @@ export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
   const startRun = async () => {
     try {
       const id = await runs.start(pipelineId)
-      setRunId(id); say("Run started"); reload()
+      setRunId(id)
+      setNodes(ns => ns.map(n => ({ ...n, data: { ...n.data, status: undefined } })))
+      say("Run started"); reload()
     } catch (e) { fail(e) }
-  }
-
-  const addNode = () => {
-    if (!newType) return
-    setNodes(prev => [...prev, emptyNode(newType, prev.length + 1)])
-  }
-
-  const addEdge = () => {
-    if (!edgeFrom || !edgeTo) return
-    setEdges(prev => [...prev, { sourceNodeId: edgeFrom, targetNodeId: edgeTo }])
   }
 
   const createSchedule = async () => {
@@ -140,130 +204,124 @@ export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
   if (!detail) return <div className="p-8">Loading... {err && <p className="text-destructive">{err}</p>}</div>
 
   return (
-    <div className="max-w-5xl mx-auto p-8 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="h-screen flex flex-col">
+      <div className="flex items-center justify-between px-4 py-2 border-b">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={onBack}>← Back</Button>
-          <Input value={name} onChange={e => setName(e.target.value)} className="w-64" />
+          <Button variant="ghost" size="sm" onClick={onBack}>←</Button>
+          <Input value={name} onChange={e => setName(e.target.value)} className="w-56 h-8" />
         </div>
         <div className="flex gap-2">
           <Button size="sm" onClick={save}>Save</Button>
           <Button size="sm" variant="outline" onClick={validate}>Validate</Button>
           <Button size="sm" variant="outline" onClick={publish}>Publish</Button>
+          <Button size="sm" variant="outline" onClick={startRun}>Run</Button>
           <Button size="sm" variant="ghost" onClick={archive}>Archive</Button>
           <Button size="sm" variant="ghost" onClick={onLogout}>Logout</Button>
         </div>
       </div>
-      {msg && <p className="text-sm text-green-700">{msg}</p>}
-      {err && <p className="text-sm text-destructive">{err}</p>}
+      {msg && <p className="text-sm text-green-700 px-4 pt-1">{msg}</p>}
+      {err && <p className="text-sm text-destructive px-4 pt-1">{err}</p>}
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">Nodes ({nodes.length})</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          {nodes.map((n, i) => (
-            <div key={i} className="border rounded p-3 space-y-2">
-              <div className="flex gap-2 items-center">
-                <Input className="w-28" value={n.nodeId} onChange={e => setNodes(p => p.map((x, j) => j === i ? { ...x, nodeId: e.target.value } : x))} />
-                <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700">{n.nodeType}</span>
-                <Input className="w-32" placeholder="label" value={n.label ?? ""} onChange={e => setNodes(p => p.map((x, j) => j === i ? { ...x, label: e.target.value || null } : x))} />
-                <Button variant="ghost" size="sm" className="text-destructive ml-auto" onClick={() => setNodes(p => p.filter((_, j) => j !== i))}>x</Button>
-              </div>
-              <textarea className="w-full text-xs font-mono border rounded p-2" rows={2} value={n.configJson}
-                onChange={e => setNodes(p => p.map((x, j) => j === i ? { ...x, configJson: e.target.value } : x))} />
+      <div className="flex flex-1 min-h-0">
+        <div className="w-48 border-r p-3 space-y-2 overflow-auto">
+          <p className="text-xs font-medium text-muted-foreground">PALETTE — drag onto canvas</p>
+          {defs.map(d => (
+            <div key={d.type} draggable
+              onDragStart={e => e.dataTransfer.setData("application/reflow-nodetype", d.type)}
+              className="border rounded p-2 cursor-grab hover:bg-accent/50">
+              <div className="text-xs font-medium">{d.displayName}</div>
+              <div className="text-[10px] font-mono text-muted-foreground">{d.type}</div>
             </div>
           ))}
-          <div className="flex gap-2">
-            <select className="h-9 rounded-md border px-3 text-sm flex-1" value={newType} onChange={e => setNewType(e.target.value)}>
-              <option value="">Add node…</option>
-              {defs.map(d => <option key={d.type} value={d.type}>{d.displayName} ({d.type})</option>)}
-            </select>
-            <Button size="sm" variant="outline" onClick={addNode}>Add</Button>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">Edges ({edges.length})</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
-          {edges.map((e, i) => (
-            <div key={i} className="flex items-center gap-2 text-sm">
-              <span className="font-mono">{e.sourceNodeId} → {e.targetNodeId}</span>
-              <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setEdges(p => p.filter((_, j) => j !== i))}>x</Button>
-            </div>
-          ))}
-          <div className="flex gap-2">
-            <select className="h-9 rounded-md border px-3 text-sm flex-1" value={edgeFrom} onChange={e => setEdgeFrom(e.target.value)}>
-              <option value="">From…</option>
-              {nodes.map(n => <option key={n.nodeId} value={n.nodeId}>{n.nodeId}</option>)}
-            </select>
-            <select className="h-9 rounded-md border px-3 text-sm flex-1" value={edgeTo} onChange={e => setEdgeTo(e.target.value)}>
-              <option value="">To…</option>
-              {nodes.map(n => <option key={n.nodeId} value={n.nodeId}>{n.nodeId}</option>)}
-            </select>
-            <Button size="sm" variant="outline" onClick={addEdge}>Add</Button>
-          </div>
-        </CardContent>
-      </Card>
+        <div className="flex-1 min-w-0" onDrop={onDrop} onDragOver={e => e.preventDefault()}>
+          <ReactFlow
+            nodes={nodes} edges={edges}
+            onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect}
+            onNodeClick={(_, n) => setSelectedId(n.id)}
+            onPaneClick={() => setSelectedId(null)}
+            nodeTypes={nodeTypesMap} fitView>
+            <Background />
+            <Controls />
+          </ReactFlow>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Runs</CardTitle>
-            <Button size="sm" onClick={startRun}>Start run</Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {runList.map(r => (
-            <div key={r.id} className="flex items-center gap-2 text-sm">
-              <button className="underline font-mono" onClick={() => setRunId(r.id)}>v{r.versionNumber} · {RUN_STATUSES[r.status]}</button>
-              <span className="text-muted-foreground">{r.triggerKind} · {new Date(r.createdAt).toLocaleString()}</span>
-              {r.error && <span className="text-destructive">{r.error}</span>}
-              {r.status < 2 && <Button size="sm" variant="ghost" onClick={() => runs.cancel(r.id).then(reload).catch(fail)}>Cancel</Button>}
+        <div className="w-80 border-l overflow-auto">
+          {selected ? (
+            <div className="p-3 space-y-3">
+              <p className="text-sm font-medium">Node <span className="font-mono">{selected.id}</span></p>
+              <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700">
+                {(selected.data as unknown as FlowNodeData).nodeType}
+              </span>
+              <Input placeholder="Label" value={(selected.data as unknown as FlowNodeData).label}
+                onChange={e => patchSelected({ label: e.target.value })} />
+              <textarea className="w-full text-xs font-mono border rounded p-2" rows={10}
+                value={(selected.data as unknown as FlowNodeData).configJson}
+                onChange={e => patchSelected({ configJson: e.target.value })} />
+              <Button size="sm" variant="ghost" className="text-destructive"
+                onClick={() => {
+                  setNodes(ns => ns.filter(n => n.id !== selectedId))
+                  setEdges(es => es.filter(e => e.source !== selectedId && e.target !== selectedId))
+                  setSelectedId(null)
+                }}>Delete node</Button>
             </div>
-          ))}
-          {runId && (
-            <div className="border rounded p-3 mt-2 space-y-2">
-              <p className="text-sm font-medium font-mono">{runId}</p>
-              {tasks.map(t => (
-                <div key={t.id} className="flex items-center gap-2 text-sm">
-                  <span className="font-mono">{t.nodeId} ({t.nodeType})</span>
-                  <span>{TASK_STATUSES[t.status]} · attempts {t.attemptCount}</span>
-                  {t.error && <span className="text-destructive">{t.error}</span>}
-                  {t.status === 4 && <Button size="sm" variant="ghost" onClick={() => runs.retryTask(t.id).then(reload).catch(fail)}>Retry</Button>}
+          ) : (
+            <p className="p-3 text-sm text-muted-foreground">Select a node to edit its config. Drag between handles to connect.</p>
+          )}
+
+          <div className="p-3 border-t">
+            <p className="text-sm font-medium mb-2">Runs</p>
+            <div className="space-y-1">
+              {runList.map(r => (
+                <div key={r.id} className="flex items-center gap-2 text-xs">
+                  <button className="underline font-mono" onClick={() => setRunId(r.id)}>v{r.versionNumber} · {RUN_STATUSES[r.status]}</button>
+                  {r.status < 2 && <button className="text-muted-foreground" onClick={() => runs.cancel(r.id).then(reload).catch(fail)}>cancel</button>}
                 </div>
               ))}
-              <div className="max-h-48 overflow-auto text-xs font-mono bg-muted/50 rounded p-2">
-                {logs.map((l, i) => <p key={i}>[{l.level}] {l.message}</p>)}
+            </div>
+            {runId && (
+              <div className="mt-2 space-y-1">
+                {tasks.map(t => (
+                  <div key={t.id} className="text-xs">
+                    <span className="font-mono">{t.nodeId}</span> {TASK_STATUSES[t.status]}
+                    {t.error && <span className="text-destructive"> {t.error}</span>}
+                    {t.status === 4 && <button className="underline ml-1" onClick={() => runs.retryTask(t.id).then(reload).catch(fail)}>retry</button>}
+                  </div>
+                ))}
+                <div className="max-h-40 overflow-auto text-[11px] font-mono bg-muted/50 rounded p-2">
+                  {logs.map((l, i) => <p key={i}>[{l.level}] {l.message}</p>)}
+                </div>
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </div>
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">Triggers</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
-          {triggerList.map(t => (
-            <div key={t.id} className="flex items-center gap-2 text-sm">
-              <span>{t.name} ({t.kind === 0 ? "schedule" : "webhook"}) {t.isEnabled ? "" : "[disabled]"}</span>
-              {t.cron && <span className="font-mono text-muted-foreground">{t.cron} {t.timezone}</span>}
-              {t.nextRunAt && <span className="text-muted-foreground">next {new Date(t.nextRunAt).toLocaleString()}</span>}
-              <Button size="sm" variant="ghost" className="text-destructive ml-auto" onClick={() => triggers.remove(pipelineId, t.id).then(reload).catch(fail)}>x</Button>
+          <div className="p-3 border-t">
+            <p className="text-sm font-medium mb-2">Triggers</p>
+            <div className="space-y-1">
+              {triggerList.map(t => (
+                <div key={t.id} className="flex items-center gap-1 text-xs">
+                  <span>{t.name} ({t.kind === 0 ? `cron ${t.cron}` : "webhook"}){t.isEnabled ? "" : " [off]"}</span>
+                  <button className="text-destructive ml-auto" onClick={() => triggers.remove(pipelineId, t.id).then(reload).catch(fail)}>x</button>
+                </div>
+              ))}
             </div>
-          ))}
-          <div className="flex gap-2 pt-2">
-            <Input className="w-32" placeholder="Name" value={schedName} onChange={e => setSchedName(e.target.value)} />
-            <Input className="w-32 font-mono" value={schedCron} onChange={e => setSchedCron(e.target.value)} />
-            <Input className="w-28" value={schedTz} onChange={e => setSchedTz(e.target.value)} />
-            <Button size="sm" variant="outline" onClick={createSchedule}>Add schedule</Button>
+            <div className="flex gap-1 mt-2">
+              <Input className="h-8 text-xs" placeholder="Name" value={schedName} onChange={e => setSchedName(e.target.value)} />
+              <Input className="h-8 text-xs font-mono" placeholder="cron" value={schedCron} onChange={e => setSchedCron(e.target.value)} />
+            </div>
+            <div className="flex gap-1 mt-1">
+              <Input className="h-8 text-xs" placeholder="Timezone" value={schedTz} onChange={e => setSchedTz(e.target.value)} />
+              <Button size="sm" variant="outline" onClick={createSchedule}>+cron</Button>
+            </div>
+            <div className="flex gap-1 mt-1">
+              <Input className="h-8 text-xs" placeholder="Webhook name" value={hookName} onChange={e => setHookName(e.target.value)} />
+              <Button size="sm" variant="outline" onClick={createWebhook}>+hook</Button>
+            </div>
+            {hookToken && <p className="text-[10px] font-mono break-all bg-muted/50 rounded p-1 mt-1">POST /api/v1/hooks/{hookToken}</p>}
           </div>
-          <div className="flex gap-2">
-            <Input className="w-32" placeholder="Name" value={hookName} onChange={e => setHookName(e.target.value)} />
-            <Button size="sm" variant="outline" onClick={createWebhook}>Add webhook</Button>
-          </div>
-          {hookToken && <p className="text-xs font-mono break-all bg-muted/50 rounded p-2">POST /api/v1/hooks/{hookToken}</p>}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }
