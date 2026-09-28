@@ -7,6 +7,7 @@ using Reflow.Modules.NodeTypes.DataSql;
 using Reflow.Modules.NodeTypes.Filter;
 using Reflow.Modules.NodeTypes.JsonRead;
 using Reflow.Modules.NodeTypes.Transform;
+using Reflow.Modules.NodeTypes.TriggerPayload;
 using Reflow.Modules.NodeTypes.Features.ListNodeTypes;
 using Reflow.Modules.NodeTypes.Registry;
 
@@ -23,6 +24,7 @@ public static class NodeTypesModule
         builder.Services.AddSingleton<INodeHandler, JsonReadHandler>();
         builder.Services.AddSingleton<INodeHandler, FilterHandler>();
         builder.Services.AddSingleton<INodeHandler, TransformHandler>();
+        builder.Services.AddSingleton<INodeHandler, TriggerPayloadHandler>();
     }
 
     public static void MapEndpoints(WebApplication app)

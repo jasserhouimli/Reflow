@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Reflow.Modules.DataProcessing.Abstractions;
 using Reflow.Modules.DataProcessing.InMemory;
+using Reflow.Modules.NodeTypes.Abstractions;
 using Reflow.Modules.NodeTypes.Registry;
 using Reflow.Modules.PipelineExecution.Domain;
 using Reflow.Modules.PipelineExecution.Persistence;
@@ -158,7 +159,12 @@ public class ExecutionWorker(
                     "Invalid config: " + string.Join("; ", configErrors));
 
             var inputs = await LoadInputsAsync(db, run, task, ct);
-            var output = await handler.ExecuteAsync(inputs, config.RootElement, timeout.Token);
+            Frame output;
+            if (handler is ITriggerPayloadHandler payloadHandler)
+                output = await payloadHandler.ExecuteWithPayload(
+                    config.RootElement, run.TriggerPayloadJson, timeout.Token);
+            else
+                output = await handler.ExecuteAsync(inputs, config.RootElement, timeout.Token);
 
             task.OutputJson = writer.ToJson(output);
             task.Status = TaskRunStatus.Completed;
@@ -183,7 +189,8 @@ public class ExecutionWorker(
             var permanent = ex is PermanentFailureException
                 || ex.Message.StartsWith("Binder", StringComparison.Ordinal)
                 || ex.Message.StartsWith("Parser", StringComparison.Ordinal)
-                || ex.Message.StartsWith("Catalog Error", StringComparison.Ordinal);
+                || ex.Message.StartsWith("Catalog Error", StringComparison.Ordinal)
+                || ex.Message.StartsWith("Invalid trigger payload", StringComparison.Ordinal);
             var message = timedOut ? "Task timed out" : Trim(ex.Message);
 
             if (!permanent && task.AttemptCount < MaxAutoAttempts)

@@ -141,4 +141,62 @@ public class TriggerTests
             new StringContent("{}", Encoding.UTF8, "application/json"));
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
     }
+
+    [Fact]
+    public async Task WebhookPayload_ReachesTriggerPayloadNode()
+    {
+        var client = await ApiHelpers.LoginNewUserAsync(_factory);
+        var create = await client.PostAsJsonAsync("/api/v1/pipelines", new { name = "Payload flow" });
+        var id = (await create.Content.ReadFromJsonAsync<JsonDocument>())!
+            .RootElement.GetProperty("id").GetGuid();
+
+        var update = await client.PutAsJsonAsync($"/api/v1/pipelines/{id}", new
+        {
+            nodes = new[]
+            {
+                new
+                {
+                    nodeId = "in",
+                    nodeType = "trigger.payload",
+                    configJson = "{\"rootPath\":\"order\"}",
+                    label = "in",
+                    positionX = 0.0,
+                    positionY = 0.0,
+                },
+            },
+            edges = Array.Empty<object>(),
+        });
+        update.EnsureSuccessStatusCode();
+        (await client.PostAsync($"/api/v1/pipelines/{id}/publish", null)).EnsureSuccessStatusCode();
+
+        var hook = await client.PostAsJsonAsync($"/api/v1/pipelines/{id}/triggers/webhooks",
+            new { name = "Incoming" });
+        var token = (await hook.Content.ReadFromJsonAsync<JsonDocument>())!
+            .RootElement.GetProperty("token").GetString()!;
+
+        var anon = _factory.CreateClient();
+        var fire = await anon.PostAsync($"/api/v1/hooks/{token}",
+            new StringContent("{\"order\":{\"id\":42}}", Encoding.UTF8, "application/json"));
+        fire.EnsureSuccessStatusCode();
+        var runId = (await fire.Content.ReadFromJsonAsync<JsonDocument>())!
+            .RootElement.GetProperty("id").GetGuid();
+
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(60);
+        while (true)
+        {
+            var res = await client.GetAsync($"/api/v1/runs/{runId}");
+            var body = (await res.Content.ReadFromJsonAsync<JsonDocument>())!;
+            if (body.RootElement.GetProperty("status").GetInt32() is 2 or 3 or 4
+                || DateTime.UtcNow > deadline)
+                break;
+            await Task.Delay(1000);
+        }
+
+        var tasks = (await (await client.GetAsync($"/api/v1/runs/{runId}/tasks"))
+            .Content.ReadFromJsonAsync<JsonDocument>())!;
+        var taskId = tasks.RootElement.EnumerateArray().First().GetProperty("id").GetGuid();
+        var task = (await (await client.GetAsync($"/api/v1/tasks/{taskId}"))
+            .Content.ReadFromJsonAsync<JsonDocument>())!;
+        Assert.Contains("42", task.RootElement.GetProperty("outputJson").GetString());
+    }
 }
