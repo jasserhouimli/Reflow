@@ -84,23 +84,22 @@ public sealed class TransformHandler : INodeHandler
             var keep = select.Where(c => !dropSet.Contains(c)).ToList();
             if (keep.Count == 0)
                 throw new InvalidOperationException("transform select leaves no columns");
-            projection = string.Join(", ", keep.Select(SqlPredicate.Column));
-        }
-        else if (drop.Count > 0)
-        {
-            projection = $"* EXCLUDE ({string.Join(", ", drop.Select(SqlPredicate.Column))})";
+            projection = string.Join(", ", keep.Select(c =>
+                renames.TryGetValue(c, out var to) && !string.Equals(to, c, StringComparison.Ordinal)
+                    ? $"{SqlPredicate.Column(c)} AS {SqlPredicate.Column(to)}"
+                    : SqlPredicate.Column(c)));
         }
         else
         {
             projection = "*";
+            if (drop.Count > 0)
+                projection += $" EXCLUDE ({string.Join(", ", drop.Select(SqlPredicate.Column))})";
+            if (renames.Count > 0)
+                projection += $" RENAME ({string.Join(", ",
+                    renames.Select(kv => $"{SqlPredicate.Column(kv.Key)} AS {SqlPredicate.Column(kv.Value)}"))})";
         }
 
-        var rename = renames.Count > 0
-            ? $" RENAME ({string.Join(", ",
-                renames.Select(kv => $"{SqlPredicate.Column(kv.Key)} AS {SqlPredicate.Column(kv.Value)}"))})"
-            : string.Empty;
-
-        var sql = $"SELECT {projection}{rename} FROM input";
+        var sql = $"SELECT {projection} FROM input";
         return Task.FromResult(_sql.Query(new[] { ("input", frame) }, sql));
     }
 }

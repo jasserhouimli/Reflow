@@ -180,7 +180,10 @@ public class ExecutionWorker(
         catch (Exception ex)
         {
             var timedOut = ex is OperationCanceledException;
-            var permanent = ex is PermanentFailureException;
+            var permanent = ex is PermanentFailureException
+                || ex.Message.StartsWith("Binder", StringComparison.Ordinal)
+                || ex.Message.StartsWith("Parser", StringComparison.Ordinal)
+                || ex.Message.StartsWith("Catalog Error", StringComparison.Ordinal);
             var message = timedOut ? "Task timed out" : Trim(ex.Message);
 
             if (!permanent && task.AttemptCount < MaxAutoAttempts)
@@ -215,8 +218,11 @@ public class ExecutionWorker(
     {
         var edges = JsonSerializer.Deserialize<List<EdgeDto>>(run.EdgesJson) ?? new();
         var sources = edges
-            .Where(e => string.Equals(e.TargetNodeId, task.NodeId, StringComparison.Ordinal))
-            .Select(e => e.SourceNodeId)
+            .Where(e => string.Equals(e.TargetNodeId, task.NodeId, StringComparison.Ordinal)
+                && e.SourceNodeId is not null)
+            .Select(e => e.SourceNodeId!)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(s => s, StringComparer.Ordinal)
             .ToList();
         if (sources.Count == 0)
             return Array.Empty<Frame>();

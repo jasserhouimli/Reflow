@@ -7,7 +7,8 @@ namespace Reflow.Modules.NodeTypes.DataSql;
 
 /// <summary>
 /// Analytical SQL over upstream tables. With one input the table is `input`;
-/// with several they are `input1..N`. DuckDB in-memory, no file access.
+/// with several they are `input1..N` ordered by source node id. DuckDB
+/// in-memory, no file access.
 /// </summary>
 public sealed class DataSqlHandler : INodeHandler
 {

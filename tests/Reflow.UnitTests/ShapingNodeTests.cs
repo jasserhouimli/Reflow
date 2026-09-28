@@ -101,6 +101,11 @@ public class ShapingNodeTests
             new[] { input }, Config("{\"renames\":{\"a\":\"alpha\"}}"), CancellationToken.None);
         Assert.Equal(new[] { "alpha", "b", "c" }, renamed.Columns);
         Assert.Equal("1", renamed.Rows[0][0]);
+
+        var combined = await handler.ExecuteAsync(
+            new[] { input }, Config("{\"select\":[\"a\",\"b\"],\"renames\":{\"b\":\"beta\"}}"),
+            CancellationToken.None);
+        Assert.Equal(new[] { "a", "beta" }, combined.Columns);
     }
 
     [Fact]
