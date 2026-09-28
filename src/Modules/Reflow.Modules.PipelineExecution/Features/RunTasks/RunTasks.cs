@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Reflow.Modules.DataProcessing.Artifacts;
 using Reflow.Modules.PipelineExecution.Persistence;
 
 namespace Reflow.Modules.PipelineExecution.Features.RunTasks;
@@ -104,5 +105,25 @@ public static class RunTasksEndpoints
                 .ToListAsync(ct);
             return Results.Ok(attempts);
         }).RequireAuthorization().WithName("ListTaskAttempts");
+
+        app.MapGet("/api/v1/runs/{id:guid}/artifacts/{nodeId}", async (
+            Guid id,
+            string nodeId,
+            PipelineExecutionDbContext db,
+            IDataArtifactStore artifacts,
+            HttpContext http,
+            CancellationToken ct) =>
+        {
+            if (!TryOwner(http, out var ownerId))
+                return Results.Json(new { error = "Unauthorized" }, statusCode: 401);
+            if (!await OwnsRun(db, id, ownerId, ct))
+                return Results.Json(new { error = "Run not found" }, statusCode: 404);
+            var file = await artifacts.LoadAsync(id, nodeId, ct);
+            if (file is null)
+                return Results.Json(new { error = "Artifact not found" }, statusCode: 404);
+            return Results.File(
+                System.Text.Encoding.UTF8.GetBytes(file.Value.Content),
+                file.Value.ContentType, file.Value.FileName);
+        }).RequireAuthorization().WithName("DownloadArtifact");
     }
 }
