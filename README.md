@@ -5,8 +5,7 @@
 Reflow is a visual data pipeline orchestration platform. Data engineers design a
 DAG of nodes on a canvas, publish an immutable version, then trigger runs
 (manually, on a cron schedule, or via webhook) that execute with retries, logs,
-and full run inspection. Compute is **SQL-first on DuckDB**: nodes compile to
-SQL instead of row-by-row C#.
+and full run inspection.
 
 ![Login](docs/images/01-login.png)
 
