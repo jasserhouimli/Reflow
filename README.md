@@ -72,20 +72,14 @@ persisted and deduplicated on `(trigger, external event id)`.
 Prerequisites: .NET 10 SDK, PostgreSQL 16+, Node 22+.
 
 ```bash
-# 1. Configure (dev only — never commit real secrets)
-# src/Reflow.Api/appsettings.Development.json
-{
-  "ConnectionStrings": { "Reflow": "Host=localhost;Port=5432;Database=reflow;Username=postgres;Password=root" },
-  "Jwt": { "Key": "your-32-char-secret-key-here-1234567890" }
-}
 
-# 2. Migrate each control-plane schema
+#Migrate each control-plane schema
 dotnet ef database update --context IdentityDbContext --project src/Reflow.Api
 dotnet ef database update --context PipelinesDbContext --project src/Reflow.Api
 dotnet ef database update --context PipelineExecutionDbContext --project src/Reflow.Api
 dotnet ef database update --context TriggersDbContext --project src/Reflow.Api
 
-# 3. Run backend + frontend (or .\dev.ps1)
+#Run backend + frontend (or .\dev.ps1)
 dotnet run --project src/Reflow.Api --urls http://localhost:5001
 cd frontend && npm install && npm run dev   # http://localhost:5173
 ```
