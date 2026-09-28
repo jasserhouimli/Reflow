@@ -64,29 +64,9 @@ public sealed class DataSqlHandler : INodeHandler
         var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var tables = new List<(string, Frame)>();
         foreach (var input in inputs)
-        {
-            var name = TableName(input.NodeId, used);
-            used.Add(name);
-            tables.Add((name, input.Frame));
-        }
+            tables.Add((NodeTableName.For(input.NodeId, used), input.Frame));
         if (tables.Count == 1 && !string.Equals(tables[0].Item1, "input", StringComparison.OrdinalIgnoreCase))
             tables.Add(("input", inputs[0].Frame));
         return tables;
-    }
-
-    internal static string TableName(string nodeId, HashSet<string> used)
-    {
-        var clean = new string(nodeId
-            .ToLowerInvariant()
-            .Select(c => char.IsLetterOrDigit(c) ? c : '_')
-            .ToArray()).Trim('_');
-        if (string.IsNullOrEmpty(clean))
-            clean = "input";
-        if (char.IsDigit(clean[0]))
-            clean = "t_" + clean;
-        var name = clean;
-        for (var i = 2; used.Contains(name); i++)
-            name = $"{clean}_{i}";
-        return name;
     }
 }
