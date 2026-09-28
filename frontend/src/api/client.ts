@@ -130,6 +130,29 @@ export interface TaskRun {
   completedAt: string | null;
 }
 
+export interface TaskDetail {
+  id: string;
+  runId: string;
+  nodeId: string;
+  nodeType: string;
+  status: number;
+  configJson: string;
+  outputJson: string | null;
+  attemptCount: number;
+  error: string | null;
+}
+
+export interface TaskAttempt {
+  attemptNumber: number;
+  status: number;
+  error: string | null;
+}
+
+export interface VersionDetail {
+  versionNumber: number;
+  definition: string;
+}
+
 export interface RunLog {
   taskRunId: string | null;
   level: string;
@@ -147,8 +170,14 @@ export const runs = {
   tasks: (runId: string) => request<TaskRun[]>(`/runs/${runId}/tasks`),
   logs: (runId: string) => request<RunLog[]>(`/runs/${runId}/logs`),
   cancel: (runId: string) => request<{ id: string }>(`/runs/${runId}/cancel`, { method: 'POST' }),
-  taskAttempts: (taskId: string) => request<Array<{ attemptNumber: number; status: number; error: string | null }>>(`/tasks/${taskId}/attempts`),
+  taskAttempts: (taskId: string) => request<TaskAttempt[]>(`/tasks/${taskId}/attempts`),
+  taskDetail: (taskId: string) => request<TaskDetail>(`/tasks/${taskId}`),
   retryTask: (taskId: string) => request<{ id: string }>(`/tasks/${taskId}/retry`, { method: 'POST' }),
+};
+
+export const versions = {
+  detail: (pipelineId: string, n: number) =>
+    request<VersionDetail>(`/pipelines/${pipelineId}/versions/${n}`),
 };
 
 export interface TriggerItem {
