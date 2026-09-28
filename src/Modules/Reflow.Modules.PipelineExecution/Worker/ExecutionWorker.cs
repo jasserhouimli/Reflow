@@ -35,17 +35,18 @@ public static class ExecutionGraph
 
 public class ExecutionWorker(
     IServiceProvider services,
+    WorkerWakeup wakeup,
     ILogger<ExecutionWorker> logger) : BackgroundService
 {
     public const int MaxAutoAttempts = 3;
     public const int MaxTotalAttempts = 5;
+    public static readonly TimeSpan PollFallback = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan TaskTimeout = TimeSpan.FromSeconds(120);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await RecoverInterruptedAsync(stoppingToken);
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
-        while (await timer.WaitForNextTickAsync(stoppingToken))
+        while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
@@ -55,6 +56,7 @@ public class ExecutionWorker(
             {
                 logger.LogError(ex, "Execution batch failed");
             }
+            await wakeup.WaitAsync(PollFallback, stoppingToken);
         }
     }
 
@@ -183,6 +185,7 @@ public class ExecutionWorker(
             await db.SaveChangesAsync(ct);
             await UnblockDownstreamAsync(task.RunId, ct);
             await FinalizeRunAsync(task.RunId, ct);
+            wakeup.Pulse();
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -209,6 +212,7 @@ public class ExecutionWorker(
                 AddLog(db, run.Id, task.Id, "Warning",
                     $"Node '{task.NodeId}' failed (attempt {task.AttemptCount}), retry scheduled: {message}");
                 await db.SaveChangesAsync(ct);
+                wakeup.Pulse();
                 return;
             }
 
@@ -222,6 +226,7 @@ public class ExecutionWorker(
                 $"Node '{task.NodeId}' failed: {message}");
             await db.SaveChangesAsync(ct);
             await FailRunAsync(task.RunId, message, ct);
+            wakeup.Pulse();
         }
     }
 

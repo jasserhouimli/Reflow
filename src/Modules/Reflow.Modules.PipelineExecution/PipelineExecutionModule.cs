@@ -20,6 +20,7 @@ public static class PipelineExecutionModule
         builder.Services.AddDbContext<PipelineExecutionDbContext>(options =>
             options.UseNpgsql(connectionString));
         builder.Services.AddScoped<PipelineExecutionDbContext>();
+        builder.Services.AddSingleton<WorkerWakeup>();
         builder.Services.AddScoped<PipelineRunStarter>();
         builder.Services.AddScoped<IPipelineRunStarter>(sp =>
             sp.GetRequiredService<PipelineRunStarter>());
