@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import {
-  ReactFlow, Background, Controls, Handle, Position,
+  ReactFlow, Background, Controls, MiniMap, Handle, Position,
   applyNodeChanges, applyEdgeChanges, addEdge,
   type Node, type Edge, type NodeChange, type EdgeChange, type Connection,
   type NodeProps,
@@ -199,6 +199,13 @@ function RawJson({ configJson, onChange }: { configJson: string; onChange: (j: s
   return <textarea className="w-full text-xs font-mono border rounded p-2" rows={8} value={configJson} onChange={e => onChange(e.target.value)} />
 }
 
+const CATEGORY_COLORS: Record<string, string> = {
+  Sources: "bg-emerald-100 text-emerald-700",
+  Transform: "bg-blue-100 text-blue-700",
+  Analysis: "bg-violet-100 text-violet-700",
+  Sinks: "bg-amber-100 text-amber-700",
+}
+
 function PipelineNodeView({ data, selected }: NodeProps) {
   const d = data as unknown as FlowNodeData
   const color = d.status === 3 ? "ring-green-400" : d.status === 4 ? "ring-red-500" : d.status === 2 ? "ring-blue-400" : ""
@@ -207,7 +214,7 @@ function PipelineNodeView({ data, selected }: NodeProps) {
       <Handle type="target" position={Position.Left} />
       <div className="text-xs font-medium">{d.label}</div>
       <div className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 inline-block mt-1">{d.nodeType}</div>
-      {d.status !== undefined && d.status !== 0 && (
+      {d.status !== undefined && d.status !== 0 && d.status !== 1 && (
         <div className="text-[10px] mt-1 text-muted-foreground">{TASK_STATUSES[d.status]}</div>
       )}
       <Handle type="source" position={Position.Right} />
@@ -248,6 +255,8 @@ export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
   const [savedSnap, setSavedSnap] = useState("")
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
+  const [paletteQuery, setPaletteQuery] = useState("")
+  const [now, setNow] = useState(() => Date.now())
   const [msg, setMsg] = useState("")
   const [err, setErr] = useState("")
 
@@ -272,6 +281,94 @@ export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
   const say = (m: string) => { setMsg(m); setErr("") }
   const fail = (e: unknown) => { setErr(e instanceof Error ? e.message : "Failed"); setMsg("") }
   const dirty = savedSnap !== "" && savedSnap !== snapshot(name, nodes, edges)
+
+  const paletteGroups = (() => {
+    const q = paletteQuery.trim().toLowerCase()
+    const filtered = q
+      ? defs.filter(d => (d.displayName + " " + d.type + " " + d.description).toLowerCase().includes(q))
+      : defs
+    const groups = new Map<string, NodeDefinition[]>()
+    for (const d of filtered) {
+      const list = groups.get(d.category) ?? []
+      list.push(d)
+      groups.set(d.category, list)
+    }
+    return [...groups.entries()]
+  })()
+
+  const paintStatuses = (t: TaskRun[]) => {
+    const byNode = new Map(t.map(x => [x.nodeId, x.status] as const))
+    setNodes(prev => prev.map(n => ({ ...n, data: { ...n.data, status: byNode.get(n.id) } })))
+    setEdges(prev => prev.map(e => {
+      const s = byNode.get(e.source)
+      return {
+        ...e,
+        animated: s === 2,
+        style: s === 3 ? { stroke: "#22c55e", strokeWidth: 2 }
+          : s === 4 ? { stroke: "#ef4444", strokeWidth: 2 }
+          : s === 2 ? { stroke: "#3b82f6", strokeWidth: 2 }
+          : undefined,
+      }
+    }))
+  }
+
+  const autoLayout = () => {
+    const incoming = new Map<string, string[]>()
+    const outgoing = new Map<string, string[]>()
+    for (const n of nodes) { incoming.set(n.id, []); outgoing.set(n.id, []) }
+    for (const e of edges) {
+      outgoing.get(e.source)?.push(e.target)
+      incoming.get(e.target)?.push(e.source)
+    }
+    const depth = new Map<string, number>()
+    const visit = (id: string, d: number, stack: Set<string>) => {
+      if (stack.has(id)) return
+      if ((depth.get(id) ?? -1) >= d) return
+      depth.set(id, d)
+      stack.add(id)
+      for (const next of outgoing.get(id) ?? []) visit(next, d + 1, stack)
+      stack.delete(id)
+    }
+    for (const n of nodes) if ((incoming.get(n.id) ?? []).length === 0) visit(n.id, 0, new Set())
+    for (const n of nodes) if (!depth.has(n.id)) visit(n.id, 0, new Set())
+    const layers = new Map<number, string[]>()
+    for (const [id, d] of depth) {
+      const list = layers.get(d) ?? []
+      list.push(id)
+      layers.set(d, list)
+    }
+    const pos = new Map<string, { x: number; y: number }>()
+    for (const [d, ids] of [...layers.entries()].sort((a, b) => a[0] - b[0]))
+      ids.sort().forEach((id, i) => pos.set(id, { x: 80 + d * 300, y: 80 + i * 150 }))
+    setNodes(ns => ns.map(n => ({ ...n, position: pos.get(n.id) ?? n.position })))
+    say("Auto-layout applied — Save to keep it")
+  }
+
+  const deleteSelection = useCallback(() => {
+    if (selectedId) {
+      setNodes(ns => ns.filter(n => n.id !== selectedId))
+      setEdges(es => es.filter(e => e.source !== selectedId && e.target !== selectedId))
+      setSelectedId(null)
+    } else if (selectedEdgeId) {
+      setEdges(es => es.filter(e => e.id !== selectedEdgeId))
+      setSelectedEdgeId(null)
+    }
+  }, [selectedId, selectedEdgeId])
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement
+      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable) return
+      if (e.key === "Delete" || e.key === "Backspace") deleteSelection()
+    }
+    window.addEventListener("keydown", h)
+    return () => window.removeEventListener("keydown", h)
+  }, [deleteSelection])
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   const reload = useCallback(async () => {
     try {
@@ -299,8 +396,7 @@ export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
         const [t, l] = await Promise.all([runs.tasks(runId), runs.logs(runId)])
         if (!alive) return
         setTasks(t); setLogs(l)
-        const byNode = new Map(t.map(x => [x.nodeId, x.status] as const))
-        setNodes(prev => prev.map(n => ({ ...n, data: { ...n.data, status: byNode.get(n.id) } })))
+        paintStatuses(t)
         const r = await runs.get(runId)
         if (!alive) return
         setRunList(prev => prev.map(x => x.id === runId ? r : x))
@@ -339,6 +435,7 @@ export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
   }, [])
 
   const selected = nodes.find(n => n.id === selectedId)
+  const activeRun = runList.find(r => r.id === runId) ?? null
   const patchSelected = (patch: Partial<FlowNodeData>) => {
     if (!selectedId) return
     setNodes(ns => ns.map(n => n.id === selectedId ? { ...n, data: { ...n.data, ...patch } } : n))
@@ -417,21 +514,32 @@ export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
       {err && <p className="text-sm text-destructive px-4 pt-1">{err}</p>}
 
       <div className="flex flex-1 min-h-0">
-        <div className="w-48 border-r p-3 space-y-2 overflow-auto">
+        <div className="w-52 border-r p-3 space-y-2 overflow-auto">
           <p className="text-xs font-medium text-muted-foreground">PALETTE — drag onto canvas</p>
-          {defs.map(d => (
-            <div key={d.type} draggable
-              onDragStart={e => e.dataTransfer.setData("application/reflow-nodetype", d.type)}
-              title={d.description}
-              className="border rounded p-2 cursor-grab hover:bg-accent/50">
-              <div className="text-xs font-medium">{d.displayName}</div>
-              <div className="text-[10px] font-mono text-muted-foreground">{d.type}</div>
+          <Input className="h-8 text-xs" placeholder="Search nodes…" value={paletteQuery} onChange={e => setPaletteQuery(e.target.value)} />
+          {paletteGroups.map(([cat, items]) => (
+            <div key={cat} className="space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground pt-1">{cat}</p>
+              {items.map(d => (
+                <div key={d.type} draggable
+                  onDragStart={e => e.dataTransfer.setData("application/reflow-nodetype", d.type)}
+                  title={d.description}
+                  className="border rounded p-2 cursor-grab hover:bg-accent/50 flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${(CATEGORY_COLORS[d.category] ?? "bg-gray-300").split(" ")[0]}`} />
+                  <div>
+                    <div className="text-xs font-medium">{d.displayName}</div>
+                    <div className="text-[10px] font-mono text-muted-foreground">{d.type}</div>
+                  </div>
+                </div>
+              ))}
             </div>
           ))}
+          {paletteGroups.length === 0 && <p className="text-xs text-muted-foreground">No nodes match.</p>}
+          <Button size="sm" variant="outline" className="w-full" onClick={autoLayout}>Auto-layout</Button>
           {selectedEdgeId && (
             <Button size="sm" variant="outline" className="w-full text-destructive"
               onClick={() => { setEdges(es => es.filter(e => e.id !== selectedEdgeId)); setSelectedEdgeId(null) }}>
-              Delete selected edge
+              Delete selected edge (Del)
             </Button>
           )}
         </div>
@@ -446,6 +554,7 @@ export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
             nodeTypes={nodeTypesMap} fitView>
             <Background />
             <Controls />
+            <MiniMap pannable zoomable />
           </ReactFlow>
         </div>
 
@@ -477,6 +586,11 @@ export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
 
           <div className="p-3 border-t">
             <p className="text-sm font-medium mb-2">Runs</p>
+            {activeRun && activeRun.status < 2 && (
+              <p className="text-xs text-blue-700 mb-1">
+                ● Running {Math.max(0, Math.round((now - new Date(activeRun.startedAt ?? activeRun.createdAt).getTime()) / 1000))}s
+              </p>
+            )}
             <div className="space-y-1">
               {runList.map(r => (
                 <div key={r.id} className="flex items-center gap-2 text-xs">

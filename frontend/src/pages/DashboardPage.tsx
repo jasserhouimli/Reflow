@@ -13,8 +13,10 @@ interface DashboardPageProps {
 export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPageProps) {
   const [list, setList] = useState<Pipeline[]>([])
   const [newName, setNewName] = useState("")
+  const [query, setQuery] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     pipelines.list().then(setList).catch(e => setError(e.message)).finally(() => setLoading(false))
@@ -37,6 +39,30 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
     setList(prev => prev.filter(p => p.id !== id))
   }
 
+  const createSample = async () => {
+    setBusy(true)
+    try {
+      const id = await pipelines.create({ name: "Sample sales" })
+      await pipelines.update(id, {
+        nodes: [
+          { nodeId: "orders", nodeType: "csv.read", configJson: "{\"csvText\":\"country,amount\\nFR,120\\nDE,35\\nFR,200\"}", label: "Orders", positionX: 60, positionY: 120 },
+          { nodeId: "report", nodeType: "data.sql", configJson: "{\"query\":\"SELECT country, SUM(CAST(amount AS DOUBLE)) AS revenue FROM orders GROUP BY country ORDER BY revenue DESC\"}", label: "Report", positionX: 380, positionY: 120 },
+        ],
+        edges: [{ sourceNodeId: "orders", targetNodeId: "report" }],
+      })
+      await pipelines.publish(id)
+      onSelectPipeline(id)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Sample failed")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const shown = query.trim()
+    ? list.filter(p => p.name.toLowerCase().includes(query.trim().toLowerCase()))
+    : list
+
   return (
     <div className="max-w-4xl mx-auto p-8">
       <div className="flex items-center justify-between mb-8">
@@ -46,14 +72,18 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
           <Button variant="ghost" size="sm" onClick={onLogout}>Logout</Button>
         </div>
       </div>
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-4">
         <Input placeholder="New pipeline name" value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key === 'Enter' && create()} />
         <Button onClick={create}>Create</Button>
+        <Button variant="outline" onClick={createSample} disabled={busy}>{busy ? "…" : "Try a sample"}</Button>
+      </div>
+      <div className="mb-6">
+        <Input placeholder="Search pipelines…" value={query} onChange={e => setQuery(e.target.value)} />
       </div>
       {error && <p className="text-sm text-destructive mb-4">{error}</p>}
       {loading ? <p>Loading...</p> : (
         <div className="grid gap-4">
-          {list.map(p => (
+          {shown.map(p => (
             <Card key={p.id} className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => onSelectPipeline(p.id)}>
               <CardHeader className="py-3">
                 <div className="flex items-center justify-between">
@@ -68,7 +98,7 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
               </CardHeader>
             </Card>
           ))}
-          {list.length === 0 && <p className="text-muted-foreground">No pipelines yet. Create one to start.</p>}
+          {shown.length === 0 && <p className="text-muted-foreground">{list.length === 0 ? "No pipelines yet. Create one — or try a sample." : "No pipelines match."}</p>}
         </div>
       )}
     </div>
