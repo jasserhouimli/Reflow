@@ -209,3 +209,6 @@ export const triggers = {
 export const RUN_STATUSES = ['Queued', 'Running', 'Completed', 'Failed', 'Cancelled'];
 export const TASK_STATUSES = ['Pending', 'Ready', 'Running', 'Completed', 'Failed', 'RetryScheduled', 'Cancelled', 'Skipped'];
 export const PIPELINE_STATUSES = ['Draft', 'Published', 'Archived'];
+
+export const artifactUrl = (runId: string, nodeId: string) =>
+  `/api/v1/runs/${runId}/artifacts/${encodeURIComponent(nodeId)}`;

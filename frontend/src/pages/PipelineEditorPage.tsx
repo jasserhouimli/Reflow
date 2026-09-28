@@ -7,7 +7,7 @@ import {
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import {
-  pipelines, runs, triggers, nodeTypes, versions,
+  pipelines, runs, triggers, nodeTypes, versions, artifactUrl,
   RUN_STATUSES, TASK_STATUSES, PIPELINE_STATUSES,
   type PipelineDetail, type PipelineEdge,
   type NodeDefinition, type PipelineRun, type TaskRun, type RunLog, type TriggerItem,
@@ -122,9 +122,72 @@ function NodeConfigForm({ nodeType, configJson, onChange }: {
     case "data.sql":
       return (
         <div className="space-y-2">
-          <label className="text-xs">Query (tables: <span className="font-mono">input</span> or <span className="font-mono">input1..N</span>)
+          <label className="text-xs">Query (tables named after source nodes)
             <textarea className="w-full text-xs font-mono border rounded p-2" rows={8}
               value={str("query")} onChange={e => set("query", e.target.value)} /></label>
+        </div>
+      )
+    case "aggregate":
+      return (
+        <div className="space-y-2">
+          <label className="text-xs">Group by (comma-separated)<Input className="h-8 font-mono"
+            value={(cfg["groupBy"] as string[] | undefined)?.join(", ") ?? ""}
+            onChange={e => set("groupBy", e.target.value.split(",").map(s => s.trim()).filter(Boolean))} /></label>
+          <label className="text-xs">Operations (function:column:alias, one per line)<textarea
+            className="w-full text-xs font-mono border rounded p-2" rows={3}
+            placeholder={"sum:amount:total\ncount:::n"}
+            value={((cfg["operations"] as Array<{ function: string; column?: string; as?: string }> | undefined) ?? [])
+              .map(o => [o.function, o.column ?? "", o.as ?? ""].join(":")).join("\n")}
+            onChange={e => set("operations", e.target.value.split("\n").map(l => {
+              const [f, c, a] = l.split(":")
+              return { function: (f ?? "").trim(), column: (c ?? "").trim(), as: (a ?? "").trim() }
+            }).filter(o => o.function))} /></label>
+          <p className="text-[11px] text-muted-foreground">functions: count, countDistinct, sum, avg, min, max</p>
+        </div>
+      )
+    case "sort":
+      return (
+        <div className="space-y-2">
+          <label className="text-xs">Order by (column:direction, one per line)<textarea
+            className="w-full text-xs font-mono border rounded p-2" rows={3} placeholder={"amount:desc\ncountry:asc"}
+            value={((cfg["orderBy"] as Array<{ column: string; direction?: string }> | undefined) ?? [])
+              .map(o => `${o.column}:${o.direction ?? "asc"}`).join("\n")}
+            onChange={e => set("orderBy", e.target.value.split("\n").map(l => {
+              const [c, d] = l.split(":")
+              return { column: (c ?? "").trim(), direction: (d ?? "asc").trim() }
+            }).filter(o => o.column))} /></label>
+        </div>
+      )
+    case "join":
+      return (
+        <div className="space-y-2">
+          <label className="text-xs">On (shared key)<Input className="h-8 font-mono"
+            value={str("on")} onChange={e => set("on", e.target.value)} /></label>
+          <div className="flex gap-2">
+            <label className="text-xs">Left key<Input className="h-8 font-mono"
+              value={str("leftOn")} onChange={e => set("leftOn", e.target.value)} /></label>
+            <label className="text-xs">Right key<Input className="h-8 font-mono"
+              value={str("rightOn")} onChange={e => set("rightOn", e.target.value)} /></label>
+          </div>
+          <label className="text-xs">How
+            <select className="h-8 rounded-md border px-2 text-xs w-full" value={str("how") || "inner"}
+              onChange={e => set("how", e.target.value)}>
+              <option value="inner">inner</option>
+              <option value="left">left</option>
+            </select></label>
+        </div>
+      )
+    case "data.output":
+      return (
+        <div className="space-y-2">
+          <label className="text-xs">Format
+            <select className="h-8 rounded-md border px-2 text-xs w-full" value={str("format") || "json"}
+              onChange={e => set("format", e.target.value)}>
+              <option value="json">json</option>
+              <option value="csv">csv</option>
+            </select></label>
+          <label className="text-xs">File name (optional)<Input className="h-8 font-mono"
+            value={str("fileName")} onChange={e => set("fileName", e.target.value)} /></label>
         </div>
       )
     default:
@@ -434,6 +497,8 @@ export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
                     {" "}{TASK_STATUSES[t.status]} · ×{t.attemptCount}
                     {t.error && <span className="text-destructive"> {t.error}</span>}
                     {t.status === 4 && <button className="underline ml-1" onClick={() => runs.retryTask(t.id).then(reload).catch(fail)}>retry</button>}
+                    {t.nodeType === "data.output" && t.status === 3 && runId &&
+                      <a className="underline ml-1" href={artifactUrl(runId, t.nodeId)} download>download</a>}
                   </div>
                 ))}
                 {taskDetail && (
