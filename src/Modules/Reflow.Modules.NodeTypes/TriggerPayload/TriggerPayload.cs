@@ -31,7 +31,7 @@ public sealed class TriggerPayloadHandler : ITriggerPayloadHandler
     }
 
     public Task<Frame> ExecuteAsync(
-        IReadOnlyList<Frame> inputs,
+        IReadOnlyList<NodeInput> inputs,
         JsonElement config,
         CancellationToken ct) =>
         throw new InvalidOperationException("trigger.payload runs only with a trigger payload");

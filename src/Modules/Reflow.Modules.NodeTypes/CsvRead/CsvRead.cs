@@ -68,7 +68,7 @@ public sealed class CsvReadHandler : INodeHandler
         CsvReadValidator.Parse(config).Errors;
 
     public Task<Frame> ExecuteAsync(
-        IReadOnlyList<Frame> inputs,
+        IReadOnlyList<NodeInput> inputs,
         JsonElement config,
         CancellationToken ct)
     {

@@ -44,7 +44,7 @@ public class TriggerPayloadNodeTests
         var handler = new TriggerPayloadHandler();
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             handler.ExecuteAsync(
-                Array.Empty<Reflow.Modules.DataProcessing.Abstractions.Frame>(),
+                Array.Empty<Reflow.Modules.NodeTypes.Abstractions.NodeInput>(),
                 Config("{}"), CancellationToken.None));
     }
 }

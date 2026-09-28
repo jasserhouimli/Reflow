@@ -220,7 +220,7 @@ public class ExecutionWorker(
         }
     }
 
-    private static async Task<IReadOnlyList<Frame>> LoadInputsAsync(
+    private static async Task<IReadOnlyList<NodeInput>> LoadInputsAsync(
         PipelineExecutionDbContext db, PipelineRun run, TaskRun task, CancellationToken ct)
     {
         var edges = JsonSerializer.Deserialize<List<EdgeDto>>(run.EdgesJson) ?? new();
@@ -232,15 +232,15 @@ public class ExecutionWorker(
             .OrderBy(s => s, StringComparer.Ordinal)
             .ToList();
         if (sources.Count == 0)
-            return Array.Empty<Frame>();
+            return Array.Empty<NodeInput>();
 
-        var frames = new List<Frame>();
+        var frames = new List<NodeInput>();
         foreach (var source in sources)
         {
             var upstream = await db.TaskRuns.AsNoTracking().FirstOrDefaultAsync(
                 t => t.RunId == run.Id && t.NodeId == source, ct);
             if (upstream?.OutputJson is not null)
-                frames.Add(JsonCodec.FromJson(upstream.OutputJson, null));
+                frames.Add(new NodeInput(source, JsonCodec.FromJson(upstream.OutputJson, null)));
         }
         return frames;
     }

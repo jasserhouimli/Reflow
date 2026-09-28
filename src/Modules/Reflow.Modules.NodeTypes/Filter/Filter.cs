@@ -51,7 +51,7 @@ public sealed class FilterHandler : INodeHandler
     }
 
     public Task<Frame> ExecuteAsync(
-        IReadOnlyList<Frame> inputs,
+        IReadOnlyList<NodeInput> inputs,
         JsonElement config,
         CancellationToken ct)
     {
@@ -68,6 +68,6 @@ public sealed class FilterHandler : INodeHandler
             config.GetProperty("column").GetString()!,
             config.GetProperty("operator").GetString()!,
             value)}";
-        return Task.FromResult(_sql.Query(new[] { ("input", inputs[0]) }, sql));
+        return Task.FromResult(_sql.Query(new[] { ("input", inputs[0].Frame) }, sql));
     }
 }

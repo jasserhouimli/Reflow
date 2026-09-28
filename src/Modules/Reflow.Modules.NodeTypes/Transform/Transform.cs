@@ -46,7 +46,7 @@ public sealed class TransformHandler : INodeHandler
     }
 
     public Task<Frame> ExecuteAsync(
-        IReadOnlyList<Frame> inputs,
+        IReadOnlyList<NodeInput> inputs,
         JsonElement config,
         CancellationToken ct)
     {
@@ -56,7 +56,7 @@ public sealed class TransformHandler : INodeHandler
         if (inputs.Count != 1)
             throw new InvalidOperationException("transform needs exactly one input");
 
-        var frame = inputs[0];
+        var frame = inputs[0].Frame;
 
         var select = config.TryGetProperty("select", out var s) && s.ValueKind == JsonValueKind.Array
             ? s.EnumerateArray()

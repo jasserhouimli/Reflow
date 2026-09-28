@@ -55,7 +55,7 @@ public class CsvReadNodeTests
     public async Task Execute_ParsesCsv()
     {
         var frame = await Handler().ExecuteAsync(
-            Array.Empty<Reflow.Modules.DataProcessing.Abstractions.Frame>(),
+            Array.Empty<Reflow.Modules.NodeTypes.Abstractions.NodeInput>(),
             Config("{\"csvText\":\"a,b\\n1,2\"}"),
             CancellationToken.None);
         Assert.Equal(new[] { "a", "b" }, frame.Columns);
@@ -67,7 +67,7 @@ public class CsvReadNodeTests
     {
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             Handler().ExecuteAsync(
-                Array.Empty<Reflow.Modules.DataProcessing.Abstractions.Frame>(),
+                Array.Empty<Reflow.Modules.NodeTypes.Abstractions.NodeInput>(),
                 Config("{}"),
                 CancellationToken.None));
     }

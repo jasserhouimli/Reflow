@@ -2,6 +2,7 @@ using System.Text.Json;
 using Reflow.Modules.DataProcessing.Abstractions;
 using Reflow.Modules.DataProcessing.DuckDb;
 using Reflow.Modules.DataProcessing.InMemory;
+using Reflow.Modules.NodeTypes.Abstractions;
 using Reflow.Modules.NodeTypes.Filter;
 using Reflow.Modules.NodeTypes.JsonRead;
 using Reflow.Modules.NodeTypes.Transform;
@@ -25,7 +26,7 @@ public class ShapingNodeTests
     {
         var handler = new JsonReadHandler();
         var frame = await handler.ExecuteAsync(
-            Array.Empty<Frame>(),
+            Array.Empty<NodeInput>(),
             Config("{\"jsonText\":\"[{\\\"a\\\":1},{\\\"a\\\":2}]\"}"),
             CancellationToken.None);
         Assert.Equal(2, frame.RowCount);
@@ -38,7 +39,7 @@ public class ShapingNodeTests
         var handler = new JsonReadHandler();
         var input = Csv("id,payload\n1,\"{\"\"city\"\":\"\"Paris\"\"}\"\n2,\"{\"\"city\"\":\"\"Lyon\"\"}\"");
         var frame = await handler.ExecuteAsync(
-            new[] { input }, Config("{\"column\":\"payload\"}"), CancellationToken.None);
+            new[] { new NodeInput("in", input) }, Config("{\"column\":\"payload\"}"), CancellationToken.None);
         Assert.Equal(2, frame.RowCount);
         Assert.Contains("city", frame.Columns);
         Assert.Contains("id", frame.Columns);
@@ -57,7 +58,7 @@ public class ShapingNodeTests
     {
         var handler = new FilterHandler(new DuckDbSqlEngine());
         var frame = await handler.ExecuteAsync(
-            new[] { Csv("name,age\nAda,36\nGrace,85") },
+            new[] { new NodeInput("in", Csv("name,age\nAda,36\nGrace,85")) },
             Config("{\"column\":\"age\",\"operator\":\"greaterThan\",\"value\":\"40\"}"),
             CancellationToken.None);
         Assert.Single(frame.Rows);
@@ -69,7 +70,7 @@ public class ShapingNodeTests
     {
         var handler = new FilterHandler(new DuckDbSqlEngine());
         var frame = await handler.ExecuteAsync(
-            new[] { Csv("name\nAda\nBob") },
+            new[] { new NodeInput("in", Csv("name\nAda\nBob")) },
             Config("{\"column\":\"name\",\"operator\":\"contains\",\"value\":\"AD\"}"),
             CancellationToken.None);
         Assert.Single(frame.Rows);
@@ -90,20 +91,20 @@ public class ShapingNodeTests
         var input = Csv("a,b,c\n1,2,3");
 
         var selected = await handler.ExecuteAsync(
-            new[] { input }, Config("{\"select\":[\"c\",\"a\"]}"), CancellationToken.None);
+            new[] { new NodeInput("in", input) }, Config("{\"select\":[\"c\",\"a\"]}"), CancellationToken.None);
         Assert.Equal(new[] { "c", "a" }, selected.Columns);
 
         var dropped = await handler.ExecuteAsync(
-            new[] { input }, Config("{\"dropColumns\":[\"b\"]}"), CancellationToken.None);
+            new[] { new NodeInput("in", input) }, Config("{\"dropColumns\":[\"b\"]}"), CancellationToken.None);
         Assert.Equal(new[] { "a", "c" }, dropped.Columns);
 
         var renamed = await handler.ExecuteAsync(
-            new[] { input }, Config("{\"renames\":{\"a\":\"alpha\"}}"), CancellationToken.None);
+            new[] { new NodeInput("in", input) }, Config("{\"renames\":{\"a\":\"alpha\"}}"), CancellationToken.None);
         Assert.Equal(new[] { "alpha", "b", "c" }, renamed.Columns);
         Assert.Equal("1", renamed.Rows[0][0]);
 
         var combined = await handler.ExecuteAsync(
-            new[] { input }, Config("{\"select\":[\"a\",\"b\"],\"renames\":{\"b\":\"beta\"}}"),
+            new[] { new NodeInput("in", input) }, Config("{\"select\":[\"a\",\"b\"],\"renames\":{\"b\":\"beta\"}}"),
             CancellationToken.None);
         Assert.Equal(new[] { "a", "beta" }, combined.Columns);
     }

@@ -42,7 +42,7 @@ public sealed class JsonReadHandler : INodeHandler
     }
 
     public Task<Frame> ExecuteAsync(
-        IReadOnlyList<Frame> inputs,
+        IReadOnlyList<NodeInput> inputs,
         JsonElement config,
         CancellationToken ct)
     {
@@ -56,7 +56,7 @@ public sealed class JsonReadHandler : INodeHandler
         {
             if (inputs.Count != 1)
                 throw new InvalidOperationException("json.read column mode needs exactly one input");
-            return Task.FromResult(Unpack(inputs[0], c.GetString()!));
+            return Task.FromResult(Unpack(inputs[0].Frame, c.GetString()!));
         }
 
         var jsonText = config.GetProperty("jsonText").GetString()!;

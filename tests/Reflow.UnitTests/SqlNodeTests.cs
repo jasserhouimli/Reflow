@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Reflow.Modules.DataProcessing.Abstractions;
 using Reflow.Modules.DataProcessing.DuckDb;
+using Reflow.Modules.NodeTypes.Abstractions;
 using Reflow.Modules.NodeTypes.DataSql;
 using Xunit;
 
@@ -76,9 +77,21 @@ public class SqlNodeTests
         Assert.Equal("data.sql", handler.Type);
         Assert.NotEmpty(handler.ValidateConfig(Config("{}")));
         var frame = await handler.ExecuteAsync(
-            new[] { Table() },
-            Config("{\"query\":\"SELECT COUNT(*) AS n FROM input\"}"),
+            new[] { new NodeInput("orders", Table()) },
+            Config("{\"query\":\"SELECT COUNT(*) AS n FROM orders\"}"),
             CancellationToken.None);
         Assert.Equal("3", frame.Rows[0][0]);
+    }
+
+    [Fact]
+    public void NameTables_SanitizesAndDedupes()
+    {
+        var tables = DataSqlHandler.NameTables(new[]
+        {
+            new NodeInput("Orders!", Table()),
+            new NodeInput("orders", Table()),
+        });
+        Assert.Equal("orders", tables[0].Name);
+        Assert.Equal("orders_2", tables[1].Name);
     }
 }
