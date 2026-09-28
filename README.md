@@ -1,220 +1,132 @@
-# Reflow — Visual Workflow Orchestration Platform
+# Reflow — Visual Data Pipeline Orchestration
 
 [![CI](https://github.com/jasserhouimli/Reflow/actions/workflows/ci.yml/badge.svg)](https://github.com/jasserhouimli/Reflow/actions/workflows/ci.yml)
 
-Reflow is a visual workflow orchestration platform for defining, validating, versioning, executing, monitoring, and recovering automated workflows. A user builds a workflow from connected task nodes. The backend validates the workflow graph, stores immutable published versions, schedules work, executes tasks asynchronously, records state and logs, and handles failures and retries.
+Reflow is a visual data pipeline orchestration platform. Data engineers design a
+DAG of nodes on a canvas, publish an immutable version, then trigger runs
+(manually, on a cron schedule, or via webhook) that execute with retries, logs,
+and full run inspection. Compute is **SQL-first on DuckDB**: nodes compile to
+SQL instead of row-by-row C#.
+
+![Login](docs/images/01-login.png)
+
+## Preview
+
+### Pipelines dashboard
+
+![Dashboard](docs/images/02-dashboard.png)
+
+### Visual canvas — drag nodes, connect handles, guided configs
+
+![Canvas](docs/images/03-canvas.png)
+
+### Live runs — per-node status, output preview, logs, versions
+
+![Run inspection](docs/images/04-run.png)
+
+## How it works
+
+```text
+Canvas (React Flow, palette from GET /api/node-types)
+        ↓  save / validate / publish (immutable version)
+Trigger (manual / cron / webhook, idempotent)
+        ↓
+Pipeline run → DAG execution engine (atomic claims, bounded retries)
+        ↓
+Node handlers → DuckDB SQL (filter/transform/aggregate/join)
+        ↓
+Task outputs, attempts, logs, lineage-ready metadata
+```
+
+Triggers start runs; they never execute pipelines inline. Webhook events are
+persisted and deduplicated on `(trigger, external event id)`.
 
 ## Tech
 
-- .NET 10 with Minimal APIs
-- PostgreSQL with Entity Framework Core
-- JWT authentication (access + refresh tokens via HttpOnly cookies)
-- FluentValidation for request validation
-- Serilog for logging
-- Swagger for API docs
-- React + TypeScript + Vite + Tailwind CSS + shadcn/ui
+- .NET 10, ASP.NET Core Minimal APIs (no controllers), vertical slices
+- PostgreSQL + Entity Framework Core (control plane; one schema per module)
+- DuckDB (analytical SQL), JWT auth over HttpOnly cookies, FluentValidation
+- Serilog, Swagger (dev), Cronos (schedules), xUnit (66 unit + 26 API tests)
+- React 19 + TypeScript + Vite + Tailwind + React Flow
 
 ## Architecture
 
-- Modular monolith with separate project per module
-- Vertical slice architecture (one folder per feature)
-- Minimal APIs (no controllers)
-- `Result<T>` response type
-- Single PostgreSQL database with schema separation per module
-- Modules own their data; cross-module communication via explicit contracts and in-process domain events, never direct table access
-
-## Modules
+- Modular monolith; each module owns its data and EF schema
+- Cross-module calls only through explicit contracts
+  (`IPipelineSnapshotProvider`, `IPipelineAccessChecker`, `IPipelineRunStarter`,
+  `IRunMonitor`) — never direct table access
+- Node types are independent slices (type id, editor definition, config
+  validation, SQL-compiling execution, registration, tests); the engine
+  resolves them through a registry with no type switches
 
 | Module | Responsibility | Status |
 |--------|---------------|--------|
-| Identity | User registration, login, JWT auth, token refresh | Done |
-| WorkflowDesign | Workflow CRUD, nodes/edges, graph validation, publish/versioning, archive, file uploads | Done |
-| DataProcessing | Task handlers (15 node types), node config schemas, shared data kernel in Infrastructure | Done |
-| WorkflowExecution | Runs, task runs, attempts, logs, retry, cancel, artifacts, worker | Done |
-| Notifications | Per-workflow alert rules, inbox, webhooks (event-driven, owns its data) | Done |
-| Triggers | Cron schedules + inbound webhooks, payload-driven starts, own schema | Done |
+| Identity | Register, login, JWT + refresh, `/auth/me` | Done |
+| Pipelines | CRUD, DAG validation, immutable versions, publish/archive | Done |
+| NodeTypes | Registry, `GET /api/node-types`, csv/json/filter/transform/sql slices | Growing |
+| DataProcessing | Frame abstractions, CSV/JSON codecs, DuckDB engine, artifacts, catalog, quality, lineage | Core done |
+| PipelineExecution | Runs, attempts, logs, worker, retries, cancel, recovery | Done |
+| Triggers | Cron schedules, idempotent webhooks, scheduler worker | Done |
 
-## Realtime updates
+## Getting started
 
-Run progress streams over SignalR — no polling. Connect to `/hubs/runs`,
-call `JoinRun(runId)` (ownership-checked; strangers get "not found"), and
-receive `runUpdated`, `taskUpdated`, and `logAppended` events carrying the
-updated entities. The database remains the source of truth; events are
-notifications committed after each state change.
+Prerequisites: .NET 10 SDK, PostgreSQL 16+, Node 22+.
 
-## Notifications
+```bash
+# 1. Configure (dev only — never commit real secrets)
+# src/Reflow.Api/appsettings.Development.json
+{
+  "ConnectionStrings": { "Reflow": "Host=localhost;Port=5432;Database=reflow;Username=postgres;Password=root" },
+  "Jwt": { "Key": "your-32-char-secret-key-here-1234567890" }
+}
 
-Set per-workflow rules (on success / on failure / reject-count threshold) with
-an optional webhook URL. When a run finishes, the worker publishes a
-`RunFinished` event; the Notifications module writes inbox rows, fires the
-webhook, and pushes live to your clients. No polling, no table sharing.
+# 2. Migrate each control-plane schema
+dotnet ef database update --context IdentityDbContext --project src/Reflow.Api
+dotnet ef database update --context PipelinesDbContext --project src/Reflow.Api
+dotnet ef database update --context PipelineExecutionDbContext --project src/Reflow.Api
+dotnet ef database update --context TriggersDbContext --project src/Reflow.Api
 
-## Triggers
-
-Workflows start manually, on a cron schedule, or via an inbound webhook.
-Schedules use 5-field cron plus a timezone, support skip/queue overlap
-policies, pause/resume, and catch up missed ticks within the configured
-window. Webhooks expose a per-hook secret URL; POST valid JSON to start a
-run with that body as payload. Inside a workflow, the `trigger.payload` node
-parses the payload (with an optional root path) so downstream nodes can
-consume it. Every run records its trigger kind, name, and payload.
-
-See `Reflow_Project_Specification.md` for the full specification and roadmap.
-
-## Getting Started
-
-### Prerequisites
-
-- .NET 10 SDK
-- PostgreSQL
-- Node.js (for frontend)
-
-### Setup
-
-1. Clone the repo:
-   ```bash
-   git clone https://github.com/jasserhouimli/Reflow.git
-   cd Reflow
-   ```
-
-2. Create `src/Reflow.Api/appsettings.Development.json`:
-   ```json
-   {
-     "ConnectionStrings": {
-       "Reflow": "Host=localhost;Port=5432;Database=reflow;Username=postgres;Password=root"
-     },
-     "Jwt": {
-       "Key": "your-32-char-secret-key-here-1234567890"
-     }
-   }
-   ```
-
-3. Apply migrations:
-   ```bash
-   dotnet ef database update --context IdentityDbContext --project src/Reflow.Api
-   dotnet ef database update --context WorkflowDesignDbContext --project src/Reflow.Api
-   dotnet ef database update --context WorkflowExecutionDbContext --project src/Reflow.Api
-   ```
-
-4. Run the API:
-   ```bash
-   dotnet run --project src/Reflow.Api --urls http://localhost:5001
-   ```
-
-5. Run the frontend:
-   ```bash
-   cd frontend && npm install && npm run dev
-   ```
-   Open http://localhost:5173
-
-6. Open Swagger at `http://localhost:5001/swagger`
-
-## API
-
-| Method | Route | Description |
-|--------|-------|-------------|
-| POST | /api/v1/auth/register | Register |
-| POST | /api/v1/auth/login | Login |
-| GET | /api/v1/auth/me | Current user |
-| POST | /api/v1/auth/logout | Logout |
-| POST | /api/v1/workflows | Create workflow |
-| GET | /api/v1/workflows | List workflows |
-| GET | /api/v1/workflows/{id} | Get workflow |
-| PUT | /api/v1/workflows/{id} | Update workflow (nodes/edges) |
-| DELETE | /api/v1/workflows/{id} | Delete workflow |
-| POST | /api/v1/workflows/{id}/validate | Validate workflow |
-| POST | /api/v1/workflows/{id}/publish | Publish workflow version |
-| POST | /api/v1/workflows/{id}/archive | Archive workflow |
-| GET | /api/v1/workflows/{id}/versions | List published versions |
-| GET | /api/v1/workflows/{id}/versions/{n} | Get version definition |
-| POST | /api/v1/workflows/{id}/runs | Start a run |
-| GET | /api/v1/workflows/{id}/runs | List runs |
-| GET | /api/v1/runs/{id} | Get run |
-| POST | /api/v1/runs/{id}/cancel | Cancel run |
-| GET | /api/v1/runs/{id}/tasks | List task runs |
-| GET | /api/v1/runs/{id}/logs | Run logs |
-| GET | /api/v1/runs/{id}/artifacts/{node} | Download output artifact |
-| GET | /api/v1/tasks/{id} | Get task run |
-| GET | /api/v1/tasks/{id}/attempts | Task attempts |
-| POST | /api/v1/tasks/{id}/retry | Retry failed task |
-
-## Realtime updates
-
-Run progress streams over SignalR — no polling. Connect to `/hubs/runs`,
-call `JoinRun(runId)` (ownership-checked; strangers get "not found"), and
-receive `runUpdated`, `taskUpdated`, and `logAppended` events carrying the
-updated entities. The database remains the source of truth; events are
-notifications committed after each state change.
-
-## Project Structure
-
-```
-src/
-├── Reflow.Api/                          # Entry point, auth config, middleware
-├── Reflow.Infrastructure/               # Result pattern, middleware, shared code
-└── Modules/
-    ├── Reflow.Modules.Identity/         # Users, auth, JWT
-    ├── Reflow.Modules.WorkflowDesign/   # Workflows, nodes, edges, validation, versions
-    └── Reflow.Modules.WorkflowExecution/# Runs, handlers, worker, artifacts
-frontend/
-└── src/
-    ├── api/client.ts
-    ├── pages/ (Login, Dashboard, WorkflowEditor)
-    └── components/ui/
+# 3. Run backend + frontend (or .\dev.ps1)
+dotnet run --project src/Reflow.Api --urls http://localhost:5001
+cd frontend && npm install && npm run dev   # http://localhost:5173
 ```
 
-## Supported node types
+## API cheatsheet
 
-| Type | Config | Description |
-|------|--------|-------------|
-| `data.csv.read` | `source` (text/upload), `csvText`/`fileId`, `delimiter`, `hasHeader`, `skipRows`, `trim`, `nullValues`, `maxRows`, `dedupeColumns` | Parse CSV from pasted text or an uploaded file |
-| `data.json.read` | `source` (text/upload/input), `jsonText`/`fileId`/`column`, `rootPath` (e.g. `data.orders`) | Parse JSON standalone, or unpack JSON from an upstream column (objects merge, arrays explode) |
-| `http.request` | `url`, `timeoutSeconds`, `headers`, `rootPath`, `pagination` (offset mode) | GET JSON over HTTPS (SSRF-guarded, custom headers allowlisted) |
-| `data.validate` | `requiredColumns`, `columnTypes` (string/number/integer/boolean/date), `uniqueColumns` | Reject rows failing quality rules, with per-rule counts |
-| `data.filter` | `column`, `operator` (equals/notEquals/contains/notContains/startsWith/endsWith/matches/inList/greaterThan/lessThan/isEmpty/isNotEmpty), `value` | Keep matching rows (regex is timeout-guarded) |
-| `data.sort` | `orderBy` ([{column, direction}]) | Stable, numeric-aware multi-key sort |
-| `data.limit` | `count`, `offset` | Take a slice of rows |
-| `data.transform` | `select`/`dropColumns`, `renames`, `upperColumns`/`lowerColumns`, `fillNull`, `round`, `concat` | Reshape columns (names always refer to input columns) |
-| `data.dedupe` | `columns` (empty = whole row) | Keep first of each duplicate group |
-| `data.join` | `on` (or `leftOn`/`rightOn`), `how` (inner/left) | Join exactly two inputs on key columns |
-| `data.aggregate` | `groupBy`, `operations` (count/countDistinct/sum/avg/min/max/median) | Group and summarize |
-| `data.profile` | `columns` (empty = all) | One stats row per column (count, nulls, distinct, min/max/mean) |
-| `data.output` | `format` (json/csv), `fileName`, `delimiter`, `includeHeader` | Save downloadable artifact |
-| `trigger.payload` | `rootPath` (e.g. `order.id`) | Parse the schedule/webhook payload that started the run (optional convenience) |
-| `workflow.call` | `targetWorkflowId`, `mode` (wait/fireAndForget), `timeoutSeconds`, `payload` | Start another workflow as a child run; wait mode suspends without blocking the worker, cycles rejected at publish |
+```text
+POST /api/v1/pipelines                  create pipeline
+PUT  /api/v1/pipelines/{id}             save graph (nodes/edges)
+POST /api/v1/pipelines/{id}/validate    DAG + config validation
+POST /api/v1/pipelines/{id}/publish     freeze immutable version
+POST /api/v1/pipelines/{id}/runs        start run → 202 { id }
+GET  /api/v1/runs/{id}                  run status
+GET  /api/v1/runs/{id}/tasks            task states
+GET  /api/v1/runs/{id}/logs             execution logs
+GET  /api/v1/tasks/{id}                 task detail incl. output JSON
+POST /api/v1/tasks/{id}/retry           retry failed task
+GET  /api/node-types                    editor palette definitions
+POST /api/v1/hooks/{token}              inbound webhook → 202 (idempotent)
+```
 
-Any text field in any node config accepts `{{ expressions }}`: `trigger.kind`,
-`trigger.name`, `trigger.body.path.to.value`, `run.id`, `run.version`. A lone
-expression keeps its JSON type (numbers stay numbers); embedded ones stringify.
-`\{{` escapes a literal. Bad expressions fail validation before publish, and
-missing values fail the task with a clear error — no `trigger.payload` node
-required.
+## Node types
 
-## File uploads
-
-Workflows can use uploaded files instead of pasted content (CSV/JSON/TXT, max 10 MB).
-Files are immutable once uploaded, and files referenced by a published version
-cannot be deleted.
-
-| Method | Route | Description |
-|--------|-------|-------------|
-| POST | /api/v1/workflows/{id}/files | Upload a file (multipart `file` field) |
-| GET | /api/v1/workflows/{id}/files | List uploaded files with row/column sniffing |
-| DELETE | /api/v1/workflows/{id}/files/{fileId} | Delete a file (409 if published) |
+| Type | What it does |
+|------|--------------|
+| `csv.read` | Parse CSV text into a table |
+| `json.read` | Parse JSON text or unpack an upstream JSON column |
+| `filter` | `WHERE` predicate compiled to SQL (8 operators) |
+| `transform` | `SELECT` / `EXCLUDE` / `RENAME` compiled to SQL |
+| `data.sql` | Free-form DuckDB SQL over `input` / `input1..N` |
 
 ## Testing
 
 ```bash
-dotnet test
+dotnet test        # unit + API integration (needs Postgres, creates reflow_test)
+cd frontend && npm run build
 ```
 
-- `tests/Reflow.UnitTests` (65 tests) — graph/config validation, CSV parsing,
-  dataset merge/serialization, all data handlers, SSRF guard. No infrastructure needed.
-- `tests/Reflow.IntegrationTests` (19 tests) — full API via `WebApplicationFactory`:
-  auth flows and per-user isolation, workflow CRUD/validate/publish/versions/archive,
-  and complete run pipelines (success with quality counts, failure + manual retry,
-  retry/cancel guards) against a real PostgreSQL database.
+## Roadmap
 
-Integration tests need PostgreSQL on `localhost:5432` with a `postgres` superuser
-(password `root`, same as the dev setup). They create and use a `reflow_test`
-database automatically; each test registers its own user so no cleanup is needed.
+Aggregate/join/sort/output slices → Arrow interchange + Parquet artifacts →
+Connections (DB sinks by reference, not credentials) → Docker Compose →
+dataset catalog persistence + lineage UI → architecture tests in CI.

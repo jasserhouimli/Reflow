@@ -138,7 +138,7 @@ function RawJson({ configJson, onChange }: { configJson: string; onChange: (j: s
 
 function PipelineNodeView({ data, selected }: NodeProps) {
   const d = data as unknown as FlowNodeData
-  const color = d.status === 3 ? "ring-red-400" : d.status === 4 ? "ring-red-600" : d.status === 2 ? "ring-green-400" : ""
+  const color = d.status === 3 ? "ring-green-400" : d.status === 4 ? "ring-red-500" : d.status === 2 ? "ring-blue-400" : ""
   return (
     <div className={`rounded-md border bg-card px-3 py-2 shadow-sm min-w-36 ${selected ? "ring-2 ring-primary" : color ? `ring-2 ${color}` : ""}`}>
       <Handle type="target" position={Position.Left} />
@@ -166,7 +166,15 @@ const toFlowEdges = (edges: PipelineEdge[]): Edge[] =>
   edges.map((e, i) => ({ id: `e${i}-${e.sourceNodeId}-${e.targetNodeId}`, source: e.sourceNodeId, target: e.targetNodeId }))
 
 const snapshot = (name: string, nodes: Node[], edges: Edge[]) =>
-  JSON.stringify({ name, nodes, edges })
+  JSON.stringify({
+    name,
+    nodes: nodes.map(n => ({
+      id: n.id,
+      position: n.position,
+      data: { label: (n.data as unknown as FlowNodeData).label, nodeType: (n.data as unknown as FlowNodeData).nodeType, configJson: (n.data as unknown as FlowNodeData).configJson },
+    })),
+    edges,
+  })
 
 export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
   const [detail, setDetail] = useState<PipelineDetail | null>(null)
