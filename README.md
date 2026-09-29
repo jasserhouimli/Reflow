@@ -1,4 +1,4 @@
-# Reflow — Visual Data Pipeline Orchestration
+# Reflow : Visual Data Pipeline Orchestration
 
 [![CI](https://github.com/jasserhouimli/Reflow/actions/workflows/ci.yml/badge.svg)](https://github.com/jasserhouimli/Reflow/actions/workflows/ci.yml)
 
