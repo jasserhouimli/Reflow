@@ -53,7 +53,7 @@ public class SchedulerWorker(
         }
     }
 
-    internal async Task FireOneAsync(Guid triggerId, CancellationToken ct)
+    public async Task FireOneAsync(Guid triggerId, CancellationToken ct)
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<TriggersDbContext>();

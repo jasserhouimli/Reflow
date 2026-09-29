@@ -20,7 +20,8 @@ public static class TriggersModule
         builder.Services.AddScoped<ScheduleHandler>();
         builder.Services.AddScoped<WebhookHandler>();
         builder.Services.AddScoped<ReceiveWebhookHandler>();
-        builder.Services.AddHostedService<SchedulerWorker>();
+        builder.Services.AddSingleton<SchedulerWorker>();
+        builder.Services.AddHostedService(sp => sp.GetRequiredService<SchedulerWorker>());
     }
 
     public static void MapEndpoints(WebApplication app)

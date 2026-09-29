@@ -143,6 +143,50 @@ public class TriggerTests
     }
 
     [Fact]
+    public async Task Scheduler_FiresDueSchedule_IntoRun()
+    {
+        var client = await ApiHelpers.LoginNewUserAsync(_factory);
+        var pipelineId = await CreatePublishedPipelineAsync(client, "Ticking");
+
+        var create = await client.PostAsJsonAsync($"/api/v1/pipelines/{pipelineId}/triggers/schedules",
+            new { name = "Every minute", cron = "* * * * *", timezone = "UTC", overlap = 1 });
+        create.EnsureSuccessStatusCode();
+        var triggerId = (await create.Content.ReadFromJsonAsync<JsonDocument>())!
+            .RootElement.GetProperty("id").GetGuid();
+
+        // Force the schedule due without waiting a full minute.
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider
+                .GetRequiredService<Reflow.Modules.Triggers.Persistence.TriggersDbContext>();
+            var trigger = await db.Triggers.FindAsync(triggerId);
+            trigger!.NextRunAt = DateTime.UtcNow.AddSeconds(-1);
+            await db.SaveChangesAsync();
+        }
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var worker = scope.ServiceProvider
+                .GetRequiredService<Reflow.Modules.Triggers.Worker.SchedulerWorker>();
+            await worker.FireOneAsync(triggerId, CancellationToken.None);
+        }
+
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(90);
+        while (true)
+        {
+            var runs = (await (await client.GetAsync($"/api/v1/pipelines/{pipelineId}/runs"))
+                .Content.ReadFromJsonAsync<JsonDocument>())!;
+            // The background ticker may start newer runs; any completed run
+            // proves the schedule fired into real execution.
+            if (runs.RootElement.EnumerateArray().Any(r => r.GetProperty("status").GetInt32() == 2))
+                return;
+            if (DateTime.UtcNow > deadline)
+                throw new TimeoutException("Scheduler never fired the run");
+            await Task.Delay(1000);
+        }
+    }
+
+    [Fact]
     public async Task WebhookPayload_ReachesTriggerPayloadNode()
     {
         var client = await ApiHelpers.LoginNewUserAsync(_factory);
