@@ -8,6 +8,7 @@ using Reflow.Modules.PipelineExecution.Features.RetryTask;
 using Reflow.Modules.PipelineExecution.Features.RunTasks;
 using Reflow.Modules.PipelineExecution.Features.StartRun;
 using Reflow.Modules.PipelineExecution.Persistence;
+using Reflow.Modules.PipelineExecution.Realtime;
 using Reflow.Modules.PipelineExecution.Worker;
 
 namespace Reflow.Modules.PipelineExecution;
@@ -21,6 +22,11 @@ public static class PipelineExecutionModule
             options.UseNpgsql(connectionString));
         builder.Services.AddScoped<PipelineExecutionDbContext>();
         builder.Services.AddSingleton<WorkerWakeup>();
+        builder.Services.AddSingleton<IRunNotifier, SignalRRunNotifier>();
+        builder.Services.AddSignalR().AddJsonProtocol(options =>
+        {
+            options.PayloadSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        });
         builder.Services.AddScoped<PipelineRunStarter>();
         builder.Services.AddScoped<IPipelineRunStarter>(sp =>
             sp.GetRequiredService<PipelineRunStarter>());
@@ -38,5 +44,6 @@ public static class PipelineExecutionModule
         CancelRunEndpoint.Map(app);
         RunTasksEndpoints.Map(app);
         RetryTaskEndpoint.Map(app);
+        app.MapHub<RunHub>("/hubs/runs");
     }
 }

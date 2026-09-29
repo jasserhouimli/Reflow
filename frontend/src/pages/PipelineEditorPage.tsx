@@ -13,6 +13,7 @@ import {
   type NodeDefinition, type PipelineRun, type TaskRun, type RunLog, type TriggerItem,
   type TaskDetail, type TaskAttempt, type VersionDetail,
 } from "@/api/client"
+import { subscribeToRun } from "@/api/realtime"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -391,7 +392,8 @@ export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
   useEffect(() => {
     if (!runId) return
     let alive = true
-    const poll = async () => {
+    let finished = false
+    const refresh = async () => {
       try {
         const [t, l] = await Promise.all([runs.tasks(runId), runs.logs(runId)])
         if (!alive) return
@@ -400,12 +402,13 @@ export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
         const r = await runs.get(runId)
         if (!alive) return
         setRunList(prev => prev.map(x => x.id === runId ? r : x))
-        if (r.status >= 2) { clearInterval(timer); return }
+        if (r.status >= 2) finished = true
       } catch { /* keep polling */ }
     }
-    poll()
-    const timer = setInterval(poll, 2000)
-    return () => { alive = false; clearInterval(timer) }
+    refresh()
+    const stopSignalR = subscribeToRun(runId, () => { if (!finished) refresh() })
+    const fallback = setInterval(() => { if (!finished) refresh() }, 15000)
+    return () => { alive = false; finished = true; stopSignalR(); clearInterval(fallback) }
   }, [runId])
 
   useEffect(() => {

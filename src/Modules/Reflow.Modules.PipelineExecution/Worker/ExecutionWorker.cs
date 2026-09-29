@@ -36,6 +36,7 @@ public static class ExecutionGraph
 public class ExecutionWorker(
     IServiceProvider services,
     WorkerWakeup wakeup,
+    Realtime.IRunNotifier notifier,
     ILogger<ExecutionWorker> logger) : BackgroundService
 {
     public const int MaxAutoAttempts = 3;
@@ -185,6 +186,7 @@ public class ExecutionWorker(
             await db.SaveChangesAsync(ct);
             await UnblockDownstreamAsync(task.RunId, ct);
             await FinalizeRunAsync(task.RunId, ct);
+            await notifier.RunChangedAsync(task.RunId, ct);
             wakeup.Pulse();
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -212,6 +214,7 @@ public class ExecutionWorker(
                 AddLog(db, run.Id, task.Id, "Warning",
                     $"Node '{task.NodeId}' failed (attempt {task.AttemptCount}), retry scheduled: {message}");
                 await db.SaveChangesAsync(ct);
+                await notifier.RunChangedAsync(task.RunId, ct);
                 wakeup.Pulse();
                 return;
             }
@@ -226,6 +229,7 @@ public class ExecutionWorker(
                 $"Node '{task.NodeId}' failed: {message}");
             await db.SaveChangesAsync(ct);
             await FailRunAsync(task.RunId, message, ct);
+            await notifier.RunChangedAsync(task.RunId, ct);
             wakeup.Pulse();
         }
     }

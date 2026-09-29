@@ -55,6 +55,11 @@ builder.Services.AddAuthentication(options =>
         OnMessageReceived = context =>
         {
             var token = context.Request.Cookies["Reflow.Token"];
+            if (string.IsNullOrEmpty(token)
+                && context.Request.Path.StartsWithSegments("/hubs"))
+            {
+                token = context.Request.Query["access_token"];
+            }
             if (!string.IsNullOrEmpty(token))
             {
                 context.Token = token;

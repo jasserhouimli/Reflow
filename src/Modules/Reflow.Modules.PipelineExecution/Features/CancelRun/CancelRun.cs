@@ -8,7 +8,7 @@ using Reflow.Modules.PipelineExecution.Persistence;
 
 namespace Reflow.Modules.PipelineExecution.Features.CancelRun;
 
-public class CancelRunHandler(PipelineExecutionDbContext db)
+public class CancelRunHandler(PipelineExecutionDbContext db, Realtime.IRunNotifier notifier)
 {
     public async Task<Result<object>> Handle(Guid id, Guid ownerId, CancellationToken ct)
     {
@@ -41,6 +41,7 @@ public class CancelRunHandler(PipelineExecutionDbContext db)
             Timestamp = DateTime.UtcNow,
         });
         await db.SaveChangesAsync(ct);
+        await notifier.RunChangedAsync(run.Id, ct);
         return Result<object>.Success(new { run.Id }, 200);
     }
 }

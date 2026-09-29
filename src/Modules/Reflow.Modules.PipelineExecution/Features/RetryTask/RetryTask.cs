@@ -9,7 +9,10 @@ using Reflow.Modules.PipelineExecution.Worker;
 
 namespace Reflow.Modules.PipelineExecution.Features.RetryTask;
 
-public class RetryTaskHandler(PipelineExecutionDbContext db, Worker.WorkerWakeup wakeup)
+public class RetryTaskHandler(
+    PipelineExecutionDbContext db,
+    Worker.WorkerWakeup wakeup,
+    Realtime.IRunNotifier notifier)
 {
     public async Task<Result<object>> Handle(Guid id, Guid ownerId, CancellationToken ct)
     {
@@ -41,6 +44,7 @@ public class RetryTaskHandler(PipelineExecutionDbContext db, Worker.WorkerWakeup
         }
         await db.SaveChangesAsync(ct);
         wakeup.Pulse();
+        await notifier.RunChangedAsync(task.Task.RunId, ct);
         return Result<object>.Success(new { task.Task.Id }, 202);
     }
 }

@@ -25,7 +25,8 @@ public interface IRunMonitor
 public class PipelineRunStarter(
     PipelineExecutionDbContext db,
     IPipelineSnapshotProvider snapshots,
-    Worker.WorkerWakeup wakeup) : IPipelineRunStarter, IRunMonitor
+    Worker.WorkerWakeup wakeup,
+    Realtime.IRunNotifier notifier) : IPipelineRunStarter, IRunMonitor
 {
     public const int MaxTriggerPayloadChars = 512 * 1024;
 
@@ -108,6 +109,7 @@ public class PipelineRunStarter(
         });
         await db.SaveChangesAsync(ct);
         wakeup.Pulse();
+        await notifier.RunChangedAsync(run.Id, ct);
         return Result<Guid>.Success(run.Id, 202);
     }
 }
