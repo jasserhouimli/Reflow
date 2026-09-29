@@ -239,12 +239,15 @@ const toFlowEdges = (edges: PipelineEdge[]): Edge[] =>
 const snapshot = (name: string, nodes: Node[], edges: Edge[]) =>
   JSON.stringify({
     name,
-    nodes: nodes.map(n => ({
-      id: n.id,
-      position: n.position,
-      data: { label: (n.data as unknown as FlowNodeData).label, nodeType: (n.data as unknown as FlowNodeData).nodeType, configJson: (n.data as unknown as FlowNodeData).configJson },
-    })),
-    edges,
+    nodes: nodes.map(n => {
+      const d = n.data as unknown as FlowNodeData
+      return {
+        id: n.id,
+        position: { x: Math.round(n.position.x), y: Math.round(n.position.y) },
+        data: { label: d.label, nodeType: d.nodeType, configJson: d.configJson },
+      }
+    }),
+    edges: edges.map(e => ({ s: e.source, t: e.target })),
   })
 
 export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
