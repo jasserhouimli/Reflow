@@ -1,0 +1,47 @@
+# Local/dev stack: Postgres + API + frontend. Not for production.
+# Copy nothing — plain `docker compose up --build` boots a working app.
+# JWT_KEY has an obvious dev default; set a real value for anything shared:
+#   JWT_KEY=$(openssl rand -hex 32) docker compose up --build
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: reflow
+    volumes:
+      - reflow-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: src/Reflow.Api/Dockerfile
+    environment:
+      ConnectionStrings__Reflow: Host=db;Port=5432;Database=reflow;Username=postgres;Password=root
+      Jwt__Key: ${JWT_KEY:-dev-only-change-me-minimum-32-chars-0000000000}
+      Jwt__Issuer: Reflow
+      Jwt__Audience: Reflow
+      Database__AutoMigrate: "true"
+      Triggers__TickSeconds: "30"
+    ports:
+      - "5001:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+
+volumes:
+  reflow-db:

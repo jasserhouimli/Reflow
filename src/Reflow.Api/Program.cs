@@ -125,6 +125,20 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+if (app.Configuration.GetValue("Database:AutoMigrate", false))
+{
+    using var scope = app.Services.CreateScope();
+    var provider = scope.ServiceProvider;
+    await provider.GetRequiredService<Reflow.Modules.Identity.Persistence.IdentityDbContext>()
+        .Database.MigrateAsync();
+    await provider.GetRequiredService<Reflow.Modules.Pipelines.Persistence.PipelinesDbContext>()
+        .Database.MigrateAsync();
+    await provider.GetRequiredService<Reflow.Modules.PipelineExecution.Persistence.PipelineExecutionDbContext>()
+        .Database.MigrateAsync();
+    await provider.GetRequiredService<Reflow.Modules.Triggers.Persistence.TriggersDbContext>()
+        .Database.MigrateAsync();
+}
+
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
 if (app.Environment.IsDevelopment())
