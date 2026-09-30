@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  One-command Reflow dev environment: stop, build, (optionally test), start backend + frontend.
+  One-command Reflow dev environment: stop, build, start backend + frontend.
 
 .USAGE
   .\dev.ps1          # build + start everything
