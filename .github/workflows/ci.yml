@@ -55,11 +55,6 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-  docker:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
       - name: Build API image
         run: docker build -f src/Reflow.Api/Dockerfile -t reflow-api:ci .
 
