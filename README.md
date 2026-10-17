@@ -7,13 +7,7 @@ DAG of nodes on a canvas, publish an immutable version, then trigger runs
 (manually, on a cron schedule, or via webhook) that execute with retries, logs,
 and full run inspection.
 
-![Login](docs/images/01-login.png)
-
 ## Preview
-
-### Pipelines dashboard
-
-![Dashboard](docs/images/02-dashboard.png)
 
 ### Visual canvas — drag nodes, connect handles, guided configs
 
