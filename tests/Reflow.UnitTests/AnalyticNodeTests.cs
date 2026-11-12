@@ -27,10 +27,9 @@ public class AnalyticNodeTests
     public async Task Aggregate_GroupsAndSums()
     {
         var handler = new AggregateHandler(new DuckDbSqlEngine());
-        var frame = await handler.ExecuteAsync(
+        var frame = await handler.ExecuteAsync(NodeExecutionContext.ForTest(
             new[] { Table("orders", "country,amount\nFR,10\nFR,20\nDE,5") },
-            Config("{\"groupBy\":[\"country\"],\"operations\":[{\"function\":\"sum\",\"column\":\"amount\",\"as\":\"total\"},{\"function\":\"count\",\"as\":\"n\"}]}"),
-            CancellationToken.None);
+            Config("{\"groupBy\":[\"country\"],\"operations\":[{\"function\":\"sum\",\"column\":\"amount\",\"as\":\"total\"},{\"function\":\"count\",\"as\":\"n\"}]}")));
         Assert.Equal(2, frame.RowCount);
         Assert.Contains("total", frame.Columns);
         var fr = frame.Rows.First(r => r[0] == "FR");
@@ -48,10 +47,9 @@ public class AnalyticNodeTests
     public async Task Sort_OrdersDescending()
     {
         var handler = new SortHandler(new DuckDbSqlEngine());
-        var frame = await handler.ExecuteAsync(
+        var frame = await handler.ExecuteAsync(NodeExecutionContext.ForTest(
             new[] { Table("t", "name\nBob\nAda\nClara") },
-            Config("{\"orderBy\":[{\"column\":\"name\",\"direction\":\"desc\"}]}"),
-            CancellationToken.None);
+            Config("{\"orderBy\":[{\"column\":\"name\",\"direction\":\"desc\"}]}")));
         Assert.Equal("Clara", frame.Rows[0][0]);
         Assert.Equal("Ada", frame.Rows[2][0]);
     }
@@ -69,14 +67,13 @@ public class AnalyticNodeTests
     public async Task Join_CombinesOnKey()
     {
         var handler = new JoinHandler(new DuckDbSqlEngine());
-        var frame = await handler.ExecuteAsync(
+        var frame = await handler.ExecuteAsync(NodeExecutionContext.ForTest(
             new[]
             {
                 Table("orders", "id,customer\n1,Alice\n2,Bob"),
                 Table("tiers", "customer,tier\nAlice,gold"),
             },
-            Config("{\"on\":\"customer\",\"how\":\"inner\"}"),
-            CancellationToken.None);
+            Config("{\"on\":\"customer\",\"how\":\"inner\"}")));
         Assert.Single(frame.Rows);
         Assert.Contains("tier", frame.Columns);
         Assert.DoesNotContain("customer_right", frame.Columns);
@@ -95,10 +92,11 @@ public class AnalyticNodeTests
         var root = Path.Combine(Path.GetTempPath(), "reflow-output-" + Guid.NewGuid().ToString("N"));
         var handler = new DataOutputHandler(new LocalArtifactStore(new FrameWriter(), root));
         var runId = Guid.NewGuid();
-        var frame = await handler.ExecuteInRunAsync(
+        var frame = await handler.ExecuteAsync(NodeExecutionContext.ForTest(
             new[] { Table("src", "a\n1\n2") },
             Config("{\"format\":\"csv\"}"),
-            runId, "out", CancellationToken.None);
+            runId: runId,
+            nodeId: "out"));
         Assert.Equal(2, frame.RowCount);
 
         var store = new LocalArtifactStore(new FrameWriter(), root);

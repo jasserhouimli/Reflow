@@ -55,18 +55,15 @@ public sealed class SortHandler : INodeHandler
         return errors;
     }
 
-    public Task<Frame> ExecuteAsync(
-        IReadOnlyList<NodeInput> inputs,
-        JsonElement config,
-        CancellationToken ct)
+    public Task<Frame> ExecuteAsync(NodeExecutionContext context)
     {
-        var errors = ValidateConfig(config);
+        var errors = ValidateConfig(context.Config);
         if (errors.Count > 0)
             throw new InvalidOperationException("Invalid sort config: " + string.Join("; ", errors));
-        if (inputs.Count != 1)
-            throw new InvalidOperationException("sort needs exactly one input");
 
-        var keys = config.GetProperty("orderBy").EnumerateArray().Select(item =>
+        var input = context.RequireSingleInput("sort");
+
+        var keys = context.Config.GetProperty("orderBy").EnumerateArray().Select(item =>
         {
             var dir = item.TryGetProperty("direction", out var d)
                 && d.ValueKind == JsonValueKind.String
@@ -75,6 +72,6 @@ public sealed class SortHandler : INodeHandler
             return $"{SqlPredicate.Column(item.GetProperty("column").GetString()!)} {dir}";
         });
         var sql = $"SELECT * FROM input ORDER BY {string.Join(", ", keys)}";
-        return Task.FromResult(_sql.Query(new[] { ("input", inputs[0].Frame) }, sql));
+        return Task.FromResult(_sql.Query(new[] { ("input", input) }, sql));
     }
 }

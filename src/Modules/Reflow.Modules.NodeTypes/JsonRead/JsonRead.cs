@@ -41,26 +41,22 @@ public sealed class JsonReadHandler : INodeHandler
         return errors;
     }
 
-    public Task<Frame> ExecuteAsync(
-        IReadOnlyList<NodeInput> inputs,
-        JsonElement config,
-        CancellationToken ct)
+    public Task<Frame> ExecuteAsync(NodeExecutionContext context)
     {
-        var errors = ValidateConfig(config);
+        var errors = ValidateConfig(context.Config);
         if (errors.Count > 0)
             throw new InvalidOperationException("Invalid json.read config: " + string.Join("; ", errors));
 
-        if (config.TryGetProperty("column", out var c)
+        if (context.Config.TryGetProperty("column", out var c)
             && c.ValueKind == JsonValueKind.String
             && !string.IsNullOrWhiteSpace(c.GetString()))
         {
-            if (inputs.Count != 1)
-                throw new InvalidOperationException("json.read column mode needs exactly one input");
-            return Task.FromResult(Unpack(inputs[0].Frame, c.GetString()!));
+            var input = context.RequireSingleInput("json.read column mode");
+            return Task.FromResult(Unpack(input, c.GetString()!));
         }
 
-        var jsonText = config.GetProperty("jsonText").GetString()!;
-        var rootPath = config.TryGetProperty("rootPath", out var r)
+        var jsonText = context.Config.GetProperty("jsonText").GetString()!;
+        var rootPath = context.Config.TryGetProperty("rootPath", out var r)
             && r.ValueKind == JsonValueKind.String ? r.GetString() : null;
         return Task.FromResult(JsonCodec.FromJson(jsonText, rootPath));
     }

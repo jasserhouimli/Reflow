@@ -43,19 +43,16 @@ public sealed class DataSqlHandler : INodeHandler
         return errors;
     }
 
-    public Task<Frame> ExecuteAsync(
-        IReadOnlyList<NodeInput> inputs,
-        JsonElement config,
-        CancellationToken ct)
+    public Task<Frame> ExecuteAsync(NodeExecutionContext context)
     {
-        var errors = ValidateConfig(config);
+        var errors = ValidateConfig(context.Config);
         if (errors.Count > 0)
             throw new InvalidOperationException("Invalid data.sql config: " + string.Join("; ", errors));
-        if (inputs.Count > 8)
+        if (context.Inputs.Count > 8)
             throw new InvalidOperationException("data.sql accepts at most 8 inputs");
 
-        var tables = NameTables(inputs);
-        return Task.FromResult(_sql.Query(tables, config.GetProperty("query").GetString()!));
+        var tables = NameTables(context.Inputs);
+        return Task.FromResult(_sql.Query(tables, context.Config.GetProperty("query").GetString()!));
     }
 
     /// <summary>Node id → table name. Lowercased, sanitized, deduped.</summary>

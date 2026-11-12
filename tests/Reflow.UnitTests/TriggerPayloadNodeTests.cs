@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Reflow.Modules.NodeTypes.Abstractions;
 using Reflow.Modules.NodeTypes.TriggerPayload;
 using Xunit;
 
@@ -22,10 +23,9 @@ public class TriggerPayloadNodeTests
     public async Task ParsesPayloadWithRootPath()
     {
         var handler = new TriggerPayloadHandler();
-        var frame = await handler.ExecuteWithPayload(
-            Config("{\"rootPath\":\"order\"}"),
-            "{\"order\":{\"id\":9,\"total\":12.5}}",
-            CancellationToken.None);
+        var frame = await handler.ExecuteAsync(NodeExecutionContext.ForTest(
+            config: Config("{\"rootPath\":\"order\"}"),
+            triggerPayloadJson: "{\"order\":{\"id\":9,\"total\":12.5}}"));
         Assert.Equal("9", frame.Rows[0][frame.Columns.IndexOf("id")]);
     }
 
@@ -34,17 +34,9 @@ public class TriggerPayloadNodeTests
     {
         var handler = new TriggerPayloadHandler();
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            handler.ExecuteWithPayload(Config("{}"), null, CancellationToken.None));
+            handler.ExecuteAsync(NodeExecutionContext.ForTest(
+                config: Config("{}"),
+                triggerPayloadJson: null)));
         Assert.StartsWith("Invalid trigger payload", ex.Message);
-    }
-
-    [Fact]
-    public async Task PlainExecute_Throws()
-    {
-        var handler = new TriggerPayloadHandler();
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            handler.ExecuteAsync(
-                Array.Empty<Reflow.Modules.NodeTypes.Abstractions.NodeInput>(),
-                Config("{}"), CancellationToken.None));
     }
 }

@@ -65,22 +65,19 @@ public sealed class AggregateHandler : INodeHandler
         return errors;
     }
 
-    public Task<Frame> ExecuteAsync(
-        IReadOnlyList<NodeInput> inputs,
-        JsonElement config,
-        CancellationToken ct)
+    public Task<Frame> ExecuteAsync(NodeExecutionContext context)
     {
-        var errors = ValidateConfig(config);
+        var errors = ValidateConfig(context.Config);
         if (errors.Count > 0)
             throw new InvalidOperationException("Invalid aggregate config: " + string.Join("; ", errors));
-        if (inputs.Count != 1)
-            throw new InvalidOperationException("aggregate needs exactly one input");
 
-        var groups = config.TryGetProperty("groupBy", out var g)
+        var input = context.RequireSingleInput("aggregate");
+
+        var groups = context.Config.TryGetProperty("groupBy", out var g)
             ? g.EnumerateArray().Select(e => e.GetString()!).ToList()
             : new List<string>();
         var select = groups.Select(SqlPredicate.Column).ToList();
-        foreach (var op in config.GetProperty("operations").EnumerateArray())
+        foreach (var op in context.Config.GetProperty("operations").EnumerateArray())
         {
             var fn = op.GetProperty("function").GetString()!;
             var col = op.TryGetProperty("column", out var c) && c.ValueKind == JsonValueKind.String
@@ -95,7 +92,7 @@ public sealed class AggregateHandler : INodeHandler
         var sql = groups.Count > 0
             ? $"SELECT {string.Join(", ", select)} FROM input GROUP BY {string.Join(", ", groups.Select(SqlPredicate.Column))}"
             : $"SELECT {string.Join(", ", select)} FROM input";
-        return Task.FromResult(_sql.Query(new[] { ("input", inputs[0].Frame) }, sql));
+        return Task.FromResult(_sql.Query(new[] { ("input", input) }, sql));
     }
 
     internal static string AggregateSql(string function, string column) =>

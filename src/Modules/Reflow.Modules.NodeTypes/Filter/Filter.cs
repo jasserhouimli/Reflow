@@ -50,24 +50,20 @@ public sealed class FilterHandler : INodeHandler
         return errors;
     }
 
-    public Task<Frame> ExecuteAsync(
-        IReadOnlyList<NodeInput> inputs,
-        JsonElement config,
-        CancellationToken ct)
+    public Task<Frame> ExecuteAsync(NodeExecutionContext context)
     {
-        var errors = ValidateConfig(config);
+        var errors = ValidateConfig(context.Config);
         if (errors.Count > 0)
             throw new InvalidOperationException("Invalid filter config: " + string.Join("; ", errors));
-        if (inputs.Count != 1)
-            throw new InvalidOperationException("filter needs exactly one input");
 
-        var value = config.TryGetProperty("value", out var v)
+        var input = context.RequireSingleInput("filter");
+        var value = context.Config.TryGetProperty("value", out var v)
             ? v.ValueKind == JsonValueKind.String ? v.GetString() : v.GetRawText()
             : null;
         var sql = $"SELECT * FROM input WHERE {SqlPredicate.Build(
-            config.GetProperty("column").GetString()!,
-            config.GetProperty("operator").GetString()!,
+            context.Config.GetProperty("column").GetString()!,
+            context.Config.GetProperty("operator").GetString()!,
             value)}";
-        return Task.FromResult(_sql.Query(new[] { ("input", inputs[0].Frame) }, sql));
+        return Task.FromResult(_sql.Query(new[] { ("input", input) }, sql));
     }
 }

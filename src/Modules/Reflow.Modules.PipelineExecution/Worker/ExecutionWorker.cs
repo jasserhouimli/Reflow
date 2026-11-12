@@ -161,18 +161,16 @@ public class ExecutionWorker(
                 throw new PermanentFailureException(
                     "Invalid config: " + string.Join("; ", configErrors));
 
-            Frame output;
-            if (handler is ITriggerPayloadHandler payloadHandler)
-                output = await payloadHandler.ExecuteWithPayload(
-                    config.RootElement, run.TriggerPayloadJson, timeout.Token);
-            else if (handler is IRunScopedHandler runScoped)
-                output = await runScoped.ExecuteInRunAsync(
-                    await LoadInputsAsync(db, run, task, ct),
-                    config.RootElement, run.Id, task.NodeId, timeout.Token);
-            else
-                output = await handler.ExecuteAsync(
-                    await LoadInputsAsync(db, run, task, ct),
-                    config.RootElement, timeout.Token);
+            var inputs = await LoadInputsAsync(db, run, task, ct);
+            var context = new NodeExecutionContext(
+                run.Id,
+                task.NodeId,
+                inputs,
+                config.RootElement,
+                run.TriggerPayloadJson,
+                timeout.Token);
+
+            var output = await handler.ExecuteAsync(context);
 
             task.OutputJson = writer.ToJson(output);
             task.Status = TaskRunStatus.Completed;

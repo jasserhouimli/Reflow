@@ -50,26 +50,23 @@ public sealed class JoinHandler : INodeHandler
         return errors;
     }
 
-    public Task<Frame> ExecuteAsync(
-        IReadOnlyList<NodeInput> inputs,
-        JsonElement config,
-        CancellationToken ct)
+    public Task<Frame> ExecuteAsync(NodeExecutionContext context)
     {
-        var errors = ValidateConfig(config);
+        var errors = ValidateConfig(context.Config);
         if (errors.Count > 0)
             throw new InvalidOperationException("Invalid join config: " + string.Join("; ", errors));
-        if (inputs.Count != 2)
+        if (context.Inputs.Count != 2)
             throw new InvalidOperationException("join needs exactly two inputs");
 
-        var left = inputs[0];
-        var right = inputs[1];
-        var how = config.TryGetProperty("how", out var h)
+        var left = context.Inputs[0];
+        var right = context.Inputs[1];
+        var how = context.Config.TryGetProperty("how", out var h)
             && h.ValueKind == JsonValueKind.String
             && string.Equals(h.GetString(), "left", StringComparison.OrdinalIgnoreCase)
             ? "LEFT JOIN" : "JOIN";
 
         string leftKey, rightKey;
-        if (config.TryGetProperty("on", out var on)
+        if (context.Config.TryGetProperty("on", out var on)
             && on.ValueKind == JsonValueKind.String
             && !string.IsNullOrWhiteSpace(on.GetString()))
         {
@@ -77,8 +74,8 @@ public sealed class JoinHandler : INodeHandler
         }
         else
         {
-            leftKey = config.GetProperty("leftOn").GetString()!;
-            rightKey = config.GetProperty("rightOn").GetString()!;
+            leftKey = context.Config.GetProperty("leftOn").GetString()!;
+            rightKey = context.Config.GetProperty("rightOn").GetString()!;
         }
 
         var leftCols = left.Frame.Columns;

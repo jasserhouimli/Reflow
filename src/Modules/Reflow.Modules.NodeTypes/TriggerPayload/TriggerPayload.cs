@@ -6,7 +6,7 @@ using Reflow.Modules.NodeTypes.Abstractions;
 namespace Reflow.Modules.NodeTypes.TriggerPayload;
 
 /// <summary>Parses the payload that started the run (webhook body / schedule tick).</summary>
-public sealed class TriggerPayloadHandler : ITriggerPayloadHandler
+public sealed class TriggerPayloadHandler : INodeHandler
 {
     public const string NodeType = "trigger.payload";
 
@@ -30,29 +30,20 @@ public sealed class TriggerPayloadHandler : ITriggerPayloadHandler
         return Array.Empty<string>();
     }
 
-    public Task<Frame> ExecuteAsync(
-        IReadOnlyList<NodeInput> inputs,
-        JsonElement config,
-        CancellationToken ct) =>
-        throw new InvalidOperationException("trigger.payload runs only with a trigger payload");
-
-    public Task<Frame> ExecuteWithPayload(
-        JsonElement config,
-        string? triggerPayloadJson,
-        CancellationToken ct)
+    public Task<Frame> ExecuteAsync(NodeExecutionContext context)
     {
-        var errors = ValidateConfig(config);
+        var errors = ValidateConfig(context.Config);
         if (errors.Count > 0)
             throw new InvalidOperationException("Invalid trigger.payload config: " + string.Join("; ", errors));
-        if (string.IsNullOrWhiteSpace(triggerPayloadJson))
+        if (string.IsNullOrWhiteSpace(context.TriggerPayloadJson))
             throw new InvalidOperationException(
                 "Invalid trigger payload: this run was started without a payload");
 
-        var rootPath = config.TryGetProperty("rootPath", out var r)
+        var rootPath = context.Config.TryGetProperty("rootPath", out var r)
             && r.ValueKind == JsonValueKind.String ? r.GetString() : null;
         try
         {
-            return Task.FromResult(JsonCodec.FromJson(triggerPayloadJson, rootPath));
+            return Task.FromResult(JsonCodec.FromJson(context.TriggerPayloadJson, rootPath));
         }
         catch (InvalidOperationException ex)
         {

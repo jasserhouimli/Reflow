@@ -53,13 +53,11 @@ This guide prepares you to defend Reflow in technical interviews for software en
 
 ### Question 5: "How is NodeTypes designed? How do you add a new node type?"
 * **Answer:**
-  * NodeTypes follows the **Open-Closed Principle** via the vertical slice pattern.
-  * Each node type (e.g. `csv.read`, `filter`, `data.sql`, `join`) is a self-contained slice implementing `INodeHandler`:
-    1. A unique string `Type`
-    2. A `NodeDefinition` (ports, category, editor UI config)
-    3. `ValidateConfig(JsonElement config)`
-    4. `ExecuteAsync(...)`
-  * Slices register themselves into `NodeTypeRegistry`. The engine contains **no switch statements** on node types—it queries the registry dynamically. Adding a new node type requires zero modifications to the execution engine.
+  * NodeTypes strictly follows **SOLID principles**:
+    1. **Open-Closed Principle (OCP):** Nodes are independent vertical slices implementing `INodeHandler`. The engine contains **no switch statements or type checking**; it resolves handlers dynamically from `NodeTypeRegistry`.
+    2. **Liskov Substitution Principle (LSP) & Parameter Object:** Rather than fracturing node execution into multiple specialized interfaces (`IRunScopedHandler`, `ITriggerPayloadHandler`), execution uses a single unified `NodeExecutionContext`. Every node receives its inputs, config, run id, node id, trigger payloads, and cancellation token in a single context without throwing unsupported method exceptions.
+    3. **Dependency Inversion (DIP):** Node handlers declare dependencies on abstractions (`ISqlEngine`, `IDataReader`, `IDataArtifactStore`), keeping analytical engines swappable and testable.
+  * Adding a new node type requires zero modifications to the execution engine. Simply create a new class implementing `INodeHandler` and register it in DI.
 
 ---
 
@@ -76,6 +74,6 @@ This guide prepares you to defend Reflow in technical interviews for software en
 
 * **.NET 10** Minimal APIs with zero startup reflection overhead.
 * **100% Honest Codebase:** No placeholder mock objects or disconnected dead code.
-* **85 Unit Tests & 25 Integration Tests:**
+* **84 Unit Tests & 25 Integration Tests:**
   * Unit tests run in under **1 second**.
   * Integration tests use **Testcontainers** for real PostgreSQL database verification.

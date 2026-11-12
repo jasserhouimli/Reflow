@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Reflow.Modules.DataProcessing.InMemory;
+using Reflow.Modules.NodeTypes.Abstractions;
 using Reflow.Modules.NodeTypes.CsvRead;
 using Reflow.Modules.NodeTypes.Registry;
 using Xunit;
@@ -54,10 +55,8 @@ public class CsvReadNodeTests
     [Fact]
     public async Task Execute_ParsesCsv()
     {
-        var frame = await Handler().ExecuteAsync(
-            Array.Empty<Reflow.Modules.NodeTypes.Abstractions.NodeInput>(),
-            Config("{\"csvText\":\"a,b\\n1,2\"}"),
-            CancellationToken.None);
+        var frame = await Handler().ExecuteAsync(NodeExecutionContext.ForTest(
+            config: Config("{\"csvText\":\"a,b\\n1,2\"}")));
         Assert.Equal(new[] { "a", "b" }, frame.Columns);
         Assert.Equal("2", frame.Rows[0][1]);
     }
@@ -66,10 +65,8 @@ public class CsvReadNodeTests
     public async Task Execute_InvalidConfig_Throws()
     {
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Handler().ExecuteAsync(
-                Array.Empty<Reflow.Modules.NodeTypes.Abstractions.NodeInput>(),
-                Config("{}"),
-                CancellationToken.None));
+            Handler().ExecuteAsync(NodeExecutionContext.ForTest(
+                config: Config("{}"))));
     }
 
     [Fact]

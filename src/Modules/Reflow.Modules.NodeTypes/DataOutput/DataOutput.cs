@@ -5,9 +5,11 @@ using Reflow.Modules.NodeTypes.Abstractions;
 
 namespace Reflow.Modules.NodeTypes.DataOutput;
 
-/// <summary>Saves the input frame as a downloadable run artifact (JSON/CSV).
-/// Passes the frame through so downstream nodes keep working.</summary>
-public sealed class DataOutputHandler : IRunScopedHandler
+/// <summary>
+/// Saves the input frame as a downloadable run artifact (JSON/CSV).
+/// Passes the frame through so downstream nodes keep working.
+/// </summary>
+public sealed class DataOutputHandler : INodeHandler
 {
     public const string NodeType = "data.output";
 
@@ -37,30 +39,20 @@ public sealed class DataOutputHandler : IRunScopedHandler
         return errors;
     }
 
-    public Task<Frame> ExecuteAsync(
-        IReadOnlyList<NodeInput> inputs,
-        JsonElement config,
-        CancellationToken ct) =>
-        throw new InvalidOperationException("data.output runs only inside a pipeline run");
-
-    public async Task<Frame> ExecuteInRunAsync(
-        IReadOnlyList<NodeInput> inputs,
-        JsonElement config,
-        Guid runId,
-        string nodeId,
-        CancellationToken ct)
+    public async Task<Frame> ExecuteAsync(NodeExecutionContext context)
     {
-        var errors = ValidateConfig(config);
+        var errors = ValidateConfig(context.Config);
         if (errors.Count > 0)
             throw new InvalidOperationException("Invalid data.output config: " + string.Join("; ", errors));
-        if (inputs.Count != 1)
-            throw new InvalidOperationException("data.output needs exactly one input");
 
-        var format = config.TryGetProperty("format", out var f)
+        var input = context.RequireSingleInput("data.output");
+
+        var format = context.Config.TryGetProperty("format", out var f)
             && f.ValueKind == JsonValueKind.String ? f.GetString()! : "json";
-        var fileName = config.TryGetProperty("fileName", out var n)
+        var fileName = context.Config.TryGetProperty("fileName", out var n)
             && n.ValueKind == JsonValueKind.String ? n.GetString() : null;
-        await _artifacts.SaveAsync(runId, nodeId, inputs[0].Frame, format, fileName, ct: ct);
-        return inputs[0].Frame;
+
+        await _artifacts.SaveAsync(context.RunId, context.NodeId, input, format, fileName, ct: context.CancellationToken);
+        return input;
     }
 }

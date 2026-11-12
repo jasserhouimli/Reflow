@@ -76,10 +76,9 @@ public class SqlNodeTests
         var handler = new DataSqlHandler(new DuckDbSqlEngine());
         Assert.Equal("data.sql", handler.Type);
         Assert.NotEmpty(handler.ValidateConfig(Config("{}")));
-        var frame = await handler.ExecuteAsync(
+        var frame = await handler.ExecuteAsync(NodeExecutionContext.ForTest(
             new[] { new NodeInput("orders", Table()) },
-            Config("{\"query\":\"SELECT COUNT(*) AS n FROM orders\"}"),
-            CancellationToken.None);
+            Config("{\"query\":\"SELECT COUNT(*) AS n FROM orders\"}")));
         Assert.Equal("3", frame.Rows[0][0]);
     }
 

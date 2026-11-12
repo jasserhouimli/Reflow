@@ -86,7 +86,7 @@ See the usage guide for trigger configuration and day-to-day workflows.
 - **Real-time:** SignalR
 - **Frontend:** React 19, TypeScript, Vite, Tailwind, React Flow
 - **Tooling:** Serilog, FluentValidation, Cronos, Swagger (dev)
-- **Tests:** xUnit — 85 unit and 25 API integration tests
+- **Tests:** xUnit — 84 unit and 25 API integration tests
 
 ## Architecture
 

@@ -45,32 +45,27 @@ public sealed class TransformHandler : INodeHandler
         return errors;
     }
 
-    public Task<Frame> ExecuteAsync(
-        IReadOnlyList<NodeInput> inputs,
-        JsonElement config,
-        CancellationToken ct)
+    public Task<Frame> ExecuteAsync(NodeExecutionContext context)
     {
-        var errors = ValidateConfig(config);
+        var errors = ValidateConfig(context.Config);
         if (errors.Count > 0)
             throw new InvalidOperationException("Invalid transform config: " + string.Join("; ", errors));
-        if (inputs.Count != 1)
-            throw new InvalidOperationException("transform needs exactly one input");
 
-        var frame = inputs[0].Frame;
+        var frame = context.RequireSingleInput("transform");
 
-        var select = config.TryGetProperty("select", out var s) && s.ValueKind == JsonValueKind.Array
+        var select = context.Config.TryGetProperty("select", out var s) && s.ValueKind == JsonValueKind.Array
             ? s.EnumerateArray()
                 .Where(e => e.ValueKind == JsonValueKind.String)
                 .Select(e => e.GetString()!)
                 .ToList()
             : new List<string>();
-        var drop = config.TryGetProperty("dropColumns", out var d) && d.ValueKind == JsonValueKind.Array
+        var drop = context.Config.TryGetProperty("dropColumns", out var d) && d.ValueKind == JsonValueKind.Array
             ? d.EnumerateArray()
                 .Where(e => e.ValueKind == JsonValueKind.String)
                 .Select(e => e.GetString()!)
                 .ToList()
             : new List<string>();
-        var renames = config.TryGetProperty("renames", out var r) && r.ValueKind == JsonValueKind.Object
+        var renames = context.Config.TryGetProperty("renames", out var r) && r.ValueKind == JsonValueKind.Object
             ? r.EnumerateObject()
                 .Where(p => p.Value.ValueKind == JsonValueKind.String)
                 .ToDictionary(p => p.Name, p => p.Value.GetString()!,

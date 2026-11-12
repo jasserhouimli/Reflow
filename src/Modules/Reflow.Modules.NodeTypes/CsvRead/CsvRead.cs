@@ -67,12 +67,9 @@ public sealed class CsvReadHandler : INodeHandler
     public IReadOnlyList<string> ValidateConfig(JsonElement config) =>
         CsvReadValidator.Parse(config).Errors;
 
-    public Task<Frame> ExecuteAsync(
-        IReadOnlyList<NodeInput> inputs,
-        JsonElement config,
-        CancellationToken ct)
+    public Task<Frame> ExecuteAsync(NodeExecutionContext context)
     {
-        var (parsed, errors) = CsvReadValidator.Parse(config);
+        var (parsed, errors) = CsvReadValidator.Parse(context.Config);
         if (parsed is null)
             throw new InvalidOperationException("Invalid csv.read config: " + string.Join("; ", errors));
         return Task.FromResult(_reader.FromCsv(parsed.CsvText, parsed.Delimiter, parsed.HasHeader));
