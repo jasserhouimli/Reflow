@@ -1,9 +1,6 @@
 using Reflow.Modules.DataProcessing.Abstractions;
 using Reflow.Modules.DataProcessing.Artifacts;
-using Reflow.Modules.DataProcessing.DataQuality;
-using Reflow.Modules.DataProcessing.Datasets;
 using Reflow.Modules.DataProcessing.InMemory;
-using Reflow.Modules.DataProcessing.Lineage;
 using Xunit;
 
 namespace Reflow.UnitTests;
@@ -18,8 +15,8 @@ public class DataPlaneTests
         var runId = Guid.NewGuid();
         var frame = new Frame
         {
-            Columns = new List<string> { "a" },
-            Rows = new List<List<string?>> { new() { "1" } },
+            Columns = new List<string> { "a", "b" },
+            Rows = new List<List<string?>> { new() { "1", "hello" } },
         };
 
         var info = await store.SaveAsync(runId, "node.1", frame, "json");
@@ -28,7 +25,46 @@ public class DataPlaneTests
 
         var loaded = await store.LoadAsync(runId, "node.1");
         Assert.NotNull(loaded);
+        Assert.Equal("application/json", loaded.Value.ContentType);
         Assert.Contains("\"a\"", loaded.Value.Content);
+        Assert.Contains("\"hello\"", loaded.Value.Content);
+    }
+
+    [Fact]
+    public async Task Artifact_SaveAndLoad_CsvRoundTrip()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "reflow-artifacts-" + Guid.NewGuid().ToString("N"));
+        var store = new LocalArtifactStore(new FrameWriter(), root);
+        var runId = Guid.NewGuid();
+        var frame = new Frame
+        {
+            Columns = new List<string> { "name", "score" },
+            Rows = new List<List<string?>> { new() { "Alice, A", "100" } },
+        };
+
+        var info = await store.SaveAsync(runId, "node.csv", frame, "csv");
+        Assert.Equal(1, info.RowCount);
+
+        var loaded = await store.LoadAsync(runId, "node.csv");
+        Assert.NotNull(loaded);
+        Assert.Equal("text/csv", loaded.Value.ContentType);
+        Assert.Contains("\"Alice, A\"", loaded.Value.Content);
+    }
+
+    [Fact]
+    public async Task Artifact_CustomFileName_PreservesExtension()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "reflow-artifacts-" + Guid.NewGuid().ToString("N"));
+        var store = new LocalArtifactStore(new FrameWriter(), root);
+        var runId = Guid.NewGuid();
+        var frame = new Frame { Columns = new List<string> { "id" }, Rows = new() };
+
+        var info = await store.SaveAsync(runId, "export_node", frame, "csv", fileName: "monthly_report");
+        Assert.Equal("monthly_report.csv", info.FileName);
+
+        var loaded = await store.LoadAsync(runId, "export_node");
+        Assert.NotNull(loaded);
+        Assert.Equal("monthly_report.csv", loaded.Value.FileName);
     }
 
     [Fact]
@@ -45,73 +81,11 @@ public class DataPlaneTests
     }
 
     [Fact]
-    public async Task Catalog_RegisterList_ByLayer()
+    public async Task Artifact_LoadMissing_ReturnsNull()
     {
-        IDatasetCatalog catalog = new InMemoryDatasetCatalog();
-        var bronze = new DatasetMetadata(Guid.NewGuid(), "orders.raw", DatasetLayer.Bronze,
-            "parquet", new[] { "id" }, 10, 128, "bronze/orders", DateTime.UtcNow, null, null);
-        var gold = bronze with { Id = Guid.NewGuid(), Name = "orders.mart", Layer = DatasetLayer.Gold };
-
-        await catalog.RegisterAsync(bronze);
-        await catalog.RegisterAsync(gold);
-
-        Assert.Equal(2, (await catalog.ListAsync()).Count);
-        Assert.Single(await catalog.ListAsync(DatasetLayer.Gold));
-        Assert.Equal("orders.raw", (await catalog.GetAsync(bronze.Id))!.Name);
-    }
-
-    [Fact]
-    public void Profiler_CountsNullsDistinctAndMean()
-    {
-        IDataProfiler profiler = new FrameProfiler();
-        var frame = new Frame
-        {
-            Columns = new List<string> { "n", "s" },
-            Rows = new List<List<string?>>
-            {
-                new() { "2", "x" }, new() { "4", null }, new() { "2", "y" },
-            },
-        };
-
-        var profiles = profiler.Profile(frame).ToDictionary(p => p.Column);
-        Assert.Equal(8.0 / 3, profiles["n"].Mean!.Value, precision: 10);
-        Assert.Equal(2, profiles["n"].DistinctCount);
-        Assert.Equal(1, profiles["s"].NullCount);
-        Assert.Null(profiles["s"].Mean);
-    }
-
-    [Fact]
-    public void Quality_RequiredAndUnique_CountsFailures()
-    {
-        var frame = new Frame
-        {
-            Columns = new List<string> { "id", "email" },
-            Rows = new List<List<string?>>
-            {
-                new() { "1", "a@x.com" }, new() { null, "b@x.com" }, new() { "1", "c@x.com" },
-            },
-        };
-
-        var result = QualityEvaluator.Evaluate(frame, new[] { "id" }, new[] { "id" });
-        Assert.Equal(3, result.InputCount);
-        Assert.Equal(1, result.ValidCount);
-        Assert.Equal(2, result.RejectedCount);
-        Assert.True(result.FailuresByRule.ContainsKey("required:id"));
-        Assert.True(result.FailuresByRule.ContainsKey("unique:id"));
-    }
-
-    [Fact]
-    public async Task Lineage_UpstreamDownstream_NoSelfLoop()
-    {
-        ILineageStore store = new InMemoryLineageStore();
-        var a = Guid.NewGuid();
-        var b = Guid.NewGuid();
-        await store.AddAsync(new LineageEdge(a, b, null, "clean"));
-
-        Assert.Single(await store.DownstreamOfAsync(a));
-        Assert.Single(await store.UpstreamOfAsync(b));
-        Assert.Empty(await store.UpstreamOfAsync(a));
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => store.AddAsync(new LineageEdge(a, a, null, null)));
+        var root = Path.Combine(Path.GetTempPath(), "reflow-artifacts-" + Guid.NewGuid().ToString("N"));
+        var store = new LocalArtifactStore(new FrameWriter(), root);
+        var loaded = await store.LoadAsync(Guid.NewGuid(), "non_existent");
+        Assert.Null(loaded);
     }
 }

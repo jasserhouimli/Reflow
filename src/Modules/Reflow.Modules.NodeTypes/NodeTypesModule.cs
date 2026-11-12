@@ -22,7 +22,8 @@ public static class NodeTypesModule
     public static void Register(WebApplicationBuilder builder)
     {
         DataProcessingModule.Register(builder);
-        builder.Services.AddSingleton<NodeTypeRegistry>();
+
+        // Register each node handler slice
         builder.Services.AddSingleton<INodeHandler, CsvReadHandler>();
         builder.Services.AddSingleton<INodeHandler, DataSqlHandler>();
         builder.Services.AddSingleton<INodeHandler, AggregateHandler>();
@@ -33,15 +34,13 @@ public static class NodeTypesModule
         builder.Services.AddSingleton<INodeHandler, FilterHandler>();
         builder.Services.AddSingleton<INodeHandler, TransformHandler>();
         builder.Services.AddSingleton<INodeHandler, TriggerPayloadHandler>();
+
+        // Registry automatically receives all registered handlers via constructor injection
+        builder.Services.AddSingleton<NodeTypeRegistry>();
     }
 
     public static void MapEndpoints(WebApplication app)
     {
-        using var scope = app.Services.CreateScope();
-        var registry = scope.ServiceProvider.GetRequiredService<NodeTypeRegistry>();
-        foreach (var handler in scope.ServiceProvider.GetServices<INodeHandler>())
-            registry.Register(handler);
-
         ListNodeTypesEndpoint.Map(app);
     }
 }

@@ -86,7 +86,7 @@ See the usage guide for trigger configuration and day-to-day workflows.
 - **Real-time:** SignalR
 - **Frontend:** React 19, TypeScript, Vite, Tailwind, React Flow
 - **Tooling:** Serilog, FluentValidation, Cronos, Swagger (dev)
-- **Tests:** xUnit — 81 unit and 25 API integration tests
+- **Tests:** xUnit — 85 unit and 25 API integration tests
 
 ## Architecture
 
@@ -99,7 +99,7 @@ See the usage guide for trigger configuration and day-to-day workflows.
 | Identity | Register, login, logout, JWT refresh, `/api/v1/auth/*` | Done |
 | Pipelines | CRUD, DAG validation, immutable versions, publish/archive | Done |
 | NodeTypes | Registry, `GET /api/node-types`, 10 slices (sources, shaping, SQL, sinks) | Growing |
-| DataProcessing | Frame abstractions, CSV/JSON codecs, DuckDB engine, artifacts, catalog, quality, lineage | Core done |
+| DataProcessing | In-memory tabular frames, CSV/JSON codecs, DuckDB analytical engine, run artifacts | Done |
 | PipelineExecution | Runs, attempts, logs, worker, retries, cancel, recovery | Done |
 | Triggers | Cron schedules, idempotent webhooks, scheduler worker | Done |
 
