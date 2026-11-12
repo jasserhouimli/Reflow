@@ -7,7 +7,17 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes('@xyflow')) return 'flow-vendor';
+          if (id.includes('react-dom') || id.includes('react/')) return 'react-vendor';
+        },
+      },
     },
   },
   server: {

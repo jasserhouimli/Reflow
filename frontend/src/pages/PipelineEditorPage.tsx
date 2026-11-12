@@ -208,29 +208,53 @@ const CATEGORY_COLORS: Record<string, string> = {
 }
 
 function PipelineNodeView({ data, selected }: NodeProps) {
-  const d = data as unknown as FlowNodeData
-  const color = d.status === 3 ? "ring-green-400" : d.status === 4 ? "ring-red-500" : d.status === 2 ? "ring-blue-400" : ""
+  const d = data as unknown as FlowNodeData & { category?: string }
+  const statusRing =
+    d.status === 2 ? "ring-2 ring-blue-500 animate-pulse" :
+    d.status === 3 ? "ring-2 ring-emerald-500" :
+    d.status === 4 ? "ring-2 ring-rose-500" :
+    d.status === 6 ? "ring-2 ring-amber-500" : ""
+
+  const badgeStyle =
+    d.category && CATEGORY_COLORS[d.category]
+      ? CATEGORY_COLORS[d.category]
+      : "bg-blue-100 text-blue-700"
+
   return (
-    <div className={`rounded-md border bg-card px-3 py-2 shadow-sm min-w-36 ${selected ? "ring-2 ring-primary" : color ? `ring-2 ${color}` : ""}`}>
-      <Handle type="target" position={Position.Left} />
-      <div className="text-xs font-medium">{d.label}</div>
-      <div className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 inline-block mt-1">{d.nodeType}</div>
+    <div className={`rounded-md border bg-card px-3 py-2 shadow-sm min-w-36 transition-shadow ${selected ? "ring-2 ring-primary" : statusRing}`}>
+      <Handle type="target" position={Position.Left} className="!w-2 !h-2" />
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs font-medium truncate">{d.label}</div>
+        {d.status === 2 && <span className="inline-block w-2 h-2 rounded-full bg-blue-500 animate-ping" />}
+        {d.status === 3 && <span className="text-[10px] text-emerald-600 font-bold">✓</span>}
+        {d.status === 4 && <span className="text-[10px] text-rose-600 font-bold">✕</span>}
+      </div>
+      <div className={`text-[10px] px-1.5 py-0.5 rounded font-mono inline-block mt-1 ${badgeStyle}`}>
+        {d.nodeType}
+      </div>
       {d.status !== undefined && d.status !== 0 && d.status !== 1 && (
-        <div className="text-[10px] mt-1 text-muted-foreground">{TASK_STATUSES[d.status]}</div>
+        <div className="text-[10px] mt-1 text-muted-foreground flex items-center gap-1">
+          <span>{TASK_STATUSES[d.status]}</span>
+        </div>
       )}
-      <Handle type="source" position={Position.Right} />
+      <Handle type="source" position={Position.Right} className="!w-2 !h-2" />
     </div>
   )
 }
 
 const nodeTypesMap = { pipelineNode: PipelineNodeView }
 
-const toFlow = (d: PipelineDetail): Node[] =>
+const toFlow = (d: PipelineDetail, defs?: NodeDefinition[]): Node[] =>
   d.nodes.map(n => ({
     id: n.nodeId,
     type: "pipelineNode",
     position: { x: n.positionX, y: n.positionY },
-    data: { label: n.label || n.nodeId, nodeType: n.nodeType, configJson: n.configJson },
+    data: {
+      label: n.label || n.nodeId,
+      nodeType: n.nodeType,
+      configJson: n.configJson,
+      category: defs?.find(def => def.type === n.nodeType)?.category,
+    },
   }))
 
 const toFlowEdges = (edges: PipelineEdge[]): Edge[] =>
@@ -378,7 +402,7 @@ export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
     try {
       const d = await pipelines.get(pipelineId)
       setDetail(d); setName(d.name)
-      const n = toFlow(d); const e = toFlowEdges(d.edges)
+      const n = toFlow(d, defs); const e = toFlowEdges(d.edges)
       setNodes(n); setEdges(e)
       setSavedSnap(snapshot(d.name, n, e))
       setRunList(await runs.list(pipelineId))
@@ -436,9 +460,14 @@ export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
     const id = `n${Date.now().toString(36)}`
     setNodes(ns => [...ns, {
       id, type: "pipelineNode", position,
-      data: { label: id, nodeType: type, configJson: type === "data.sql" ? "{\"query\":\"SELECT * FROM input\"}" : "{}" },
+      data: {
+        label: id,
+        nodeType: type,
+        configJson: type === "data.sql" ? "{\"query\":\"SELECT * FROM input\"}" : "{}",
+        category: defs.find(d => d.type === type)?.category,
+      },
     }])
-  }, [])
+  }, [defs])
 
   const selected = nodes.find(n => n.id === selectedId)
   const activeRun = runList.find(r => r.id === runId) ?? null
@@ -625,14 +654,14 @@ export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
                   <div className="border rounded p-2 space-y-1">
                     <p className="text-xs font-medium">Output preview</p>
                     {outputPreview ? (
-                      <div className="overflow-auto max-h-48">
-                        <table className="text-[11px] font-mono">
-                          <thead><tr>{outputPreview.cols.map(c => <th key={c} className="text-left pr-2 border-b">{c}</th>)}</tr></thead>
+                      <div className="overflow-auto max-h-48 border rounded">
+                        <table className="text-[11px] font-mono w-full border-collapse">
+                          <thead className="bg-muted/60 sticky top-0"><tr>{outputPreview.cols.map(c => <th key={c} className="text-left px-2 py-1 border-b font-semibold">{c}</th>)}</tr></thead>
                           <tbody>{outputPreview.rows.map((r, i) => (
-                            <tr key={i}>{outputPreview.cols.map(c => <td key={c} className="pr-2 border-b">{r[c] ?? "∅"}</td>)}</tr>
+                            <tr key={i} className="odd:bg-muted/20 hover:bg-muted/40 transition-colors">{outputPreview.cols.map(c => <td key={c} className="px-2 py-0.5 border-b">{r[c] ?? "∅"}</td>)}</tr>
                           ))}</tbody>
                         </table>
-                        <p className="text-muted-foreground">showing {outputPreview.rows.length} of {outputPreview.total} rows</p>
+                        <p className="text-[10px] text-muted-foreground p-1">showing {outputPreview.rows.length} of {outputPreview.total} rows</p>
                       </div>
                     ) : <p className="text-xs text-muted-foreground">No output yet.</p>}
                     {attempts.length > 0 && (
