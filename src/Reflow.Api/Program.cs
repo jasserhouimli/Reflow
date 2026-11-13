@@ -32,6 +32,24 @@ NodeTypesModule.Register(builder);
 PipelineExecutionModule.Register(builder);
 TriggersModule.Register(builder);
 
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    if (builder.Environment.IsDevelopment())
+    {
+        jwtKey = "dev-secret-key-that-is-at-least-32-characters-long-12345";
+    }
+    else
+    {
+        throw new InvalidOperationException("Configuration 'Jwt:Key' is required and must not be empty.");
+    }
+}
+
+if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
+{
+    throw new InvalidOperationException("Configuration 'Jwt:Key' must be at least 256 bits (32 bytes) for secure HMAC-SHA256 signing.");
+}
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -45,10 +63,9 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+        ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "Reflow",
+        ValidAudience = builder.Configuration["Jwt:Audience"] ?? "Reflow",
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
     };
 
     options.Events = new JwtBearerEvents
@@ -76,7 +93,9 @@ builder.Services.AddAntiforgery(options =>
     options.HeaderName = "X-CSRF-TOKEN";
     options.Cookie.Name = "Reflow.Antiforgery";
     options.Cookie.HttpOnly = true;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
     options.Cookie.SameSite = SameSiteMode.Strict;
 });
 
@@ -84,9 +103,9 @@ builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-    var authLimit = builder.Configuration.GetValue<int?>("RateLimiting:AuthPermitLimit") ?? 5;
-    var generalLimit = builder.Configuration.GetValue<int?>("RateLimiting:GeneralPermitLimit") ?? 100;
-    var webhookLimit = builder.Configuration.GetValue<int?>("RateLimiting:WebhookPermitLimit") ?? 30;
+    var authLimit = builder.Configuration.GetValue<int>("RateLimiting:AuthPermitLimit", 5);
+    var generalLimit = builder.Configuration.GetValue<int>("RateLimiting:GeneralPermitLimit", 100);
+    var webhookLimit = builder.Configuration.GetValue<int>("RateLimiting:WebhookPermitLimit", 30);
 
     options.AddFixedWindowLimiter("auth", limiterOptions =>
     {
@@ -110,11 +129,14 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? ["http://localhost:5173", "http://localhost:5174"];
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:5174")
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();

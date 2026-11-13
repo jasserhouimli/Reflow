@@ -8,9 +8,11 @@ public class PipelineExecutionDbContextFactory : IDesignTimeDbContextFactory<Pip
 {
     public PipelineExecutionDbContext CreateDbContext(string[] args)
     {
+        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__Reflow")
+            ?? "Host=localhost;Port=5432;Database=reflow;Username=postgres;Password=root";
+
         var optionsBuilder = new DbContextOptionsBuilder<PipelineExecutionDbContext>();
-        optionsBuilder.UseNpgsql("Host=localhost;Port=5432;Database=reflow;Username=postgres;Password=root",
-            b => b.MigrationsAssembly("Reflow.Api"));
+        optionsBuilder.UseNpgsql(connectionString, b => b.MigrationsAssembly("Reflow.Api"));
         return new PipelineExecutionDbContext(optionsBuilder.Options);
     }
 }

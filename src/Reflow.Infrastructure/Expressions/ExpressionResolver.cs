@@ -28,7 +28,10 @@ public sealed record ExpressionContext(
 /// </summary>
 public static class ExpressionResolver
 {
-    private static readonly Regex Token = new(@"(?<!\\)\{\{\s*(.+?)\s*\}\}", RegexOptions.Compiled);
+    private static readonly Regex Token = new(
+        @"(?<!\\)\{\{\s*(.+?)\s*\}\}",
+        RegexOptions.Compiled,
+        TimeSpan.FromMilliseconds(250));
 
     public static bool ContainsExpressions(string? text) =>
         !string.IsNullOrEmpty(text) && Token.IsMatch(text);
