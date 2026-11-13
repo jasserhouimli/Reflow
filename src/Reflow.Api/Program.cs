@@ -148,7 +148,7 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-if (app.Configuration.GetValue("Database:AutoMigrate", false))
+if (app.Configuration.GetValue("Database:AutoMigrate", true))
 {
     using var scope = app.Services.CreateScope();
     var provider = scope.ServiceProvider;

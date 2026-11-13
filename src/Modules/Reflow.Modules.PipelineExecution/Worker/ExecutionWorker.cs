@@ -63,27 +63,34 @@ public class ExecutionWorker(
 
     private async Task RecoverInterruptedAsync(CancellationToken ct)
     {
-        using var scope = services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<PipelineExecutionDbContext>();
-        var stuck = await db.TaskRuns
-            .Where(t => t.Status == TaskRunStatus.Running)
-            .ToListAsync(ct);
-        foreach (var task in stuck)
+        try
         {
-            task.Status = TaskRunStatus.Ready;
-            task.Error = "Worker interrupted; requeued";
+            using var scope = services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<PipelineExecutionDbContext>();
+            var stuck = await db.TaskRuns
+                .Where(t => t.Status == TaskRunStatus.Running)
+                .ToListAsync(ct);
+            foreach (var task in stuck)
+            {
+                task.Status = TaskRunStatus.Ready;
+                task.Error = "Worker interrupted; requeued";
+            }
+            var openAttempts = await db.TaskAttempts
+                .Where(a => a.Status == TaskRunStatus.Running)
+                .ToListAsync(ct);
+            foreach (var attempt in openAttempts)
+            {
+                attempt.Status = TaskRunStatus.Failed;
+                attempt.Error = "Worker interrupted";
+                attempt.CompletedAt = DateTime.UtcNow;
+            }
+            if (stuck.Count > 0 || openAttempts.Count > 0)
+                await db.SaveChangesAsync(ct);
         }
-        var openAttempts = await db.TaskAttempts
-            .Where(a => a.Status == TaskRunStatus.Running)
-            .ToListAsync(ct);
-        foreach (var attempt in openAttempts)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            attempt.Status = TaskRunStatus.Failed;
-            attempt.Error = "Worker interrupted";
-            attempt.CompletedAt = DateTime.UtcNow;
+            logger.LogWarning(ex, "Could not recover interrupted tasks on startup (database schema may still be initializing)");
         }
-        if (stuck.Count > 0 || openAttempts.Count > 0)
-            await db.SaveChangesAsync(ct);
     }
 
     private async Task ProcessBatchAsync(CancellationToken ct)
