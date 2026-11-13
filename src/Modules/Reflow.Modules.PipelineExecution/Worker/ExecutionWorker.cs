@@ -246,12 +246,14 @@ public class ExecutionWorker(
         if (sources.Count == 0)
             return Array.Empty<NodeInput>();
 
+        var upstreams = await db.TaskRuns.AsNoTracking()
+            .Where(t => t.RunId == run.Id && sources.Contains(t.NodeId))
+            .ToDictionaryAsync(t => t.NodeId, StringComparer.Ordinal, ct);
+
         var frames = new List<NodeInput>();
         foreach (var source in sources)
         {
-            var upstream = await db.TaskRuns.AsNoTracking().FirstOrDefaultAsync(
-                t => t.RunId == run.Id && t.NodeId == source, ct);
-            if (upstream?.OutputJson is not null)
+            if (upstreams.TryGetValue(source, out var upstream) && upstream.OutputJson is not null)
                 frames.Add(new NodeInput(source, JsonCodec.FromJson(upstream.OutputJson, null)));
         }
         return frames;
