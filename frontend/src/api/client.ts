@@ -1,4 +1,5 @@
-const API_BASE = '/api/v1';
+const BACKEND_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || '';
+const API_BASE = `${BACKEND_URL}/api/v1`;
 
 function getCookie(name: string): string | null {
   const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
@@ -211,4 +212,4 @@ export const TASK_STATUSES = ['Pending', 'Ready', 'Running', 'Completed', 'Faile
 export const PIPELINE_STATUSES = ['Draft', 'Published', 'Archived'];
 
 export const artifactUrl = (runId: string, nodeId: string) =>
-  `/api/v1/runs/${runId}/artifacts/${encodeURIComponent(nodeId)}`;
+  `${API_BASE}/runs/${runId}/artifacts/${encodeURIComponent(nodeId)}`;

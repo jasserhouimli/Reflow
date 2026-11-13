@@ -5,10 +5,12 @@ function getCookie(name: string): string | null {
   return match ? match[2] : null;
 }
 
+const BACKEND_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || '';
+
 /** Live run feed. Server pushes `runChanged`; client refetches over REST. */
 export function subscribeToRun(runId: string, onChanged: () => void): () => void {
   const connection = new signalR.HubConnectionBuilder()
-    .withUrl("/hubs/runs", {
+    .withUrl(`${BACKEND_URL}/hubs/runs`, {
       accessTokenFactory: () => getCookie("Reflow.Token") ?? "",
     })
     .withAutomaticReconnect()
