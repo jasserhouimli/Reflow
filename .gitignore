@@ -58,3 +58,4 @@ bld/
 .env
 appsettings.Development.json
 appsettings.Local.json
+.opencode/
