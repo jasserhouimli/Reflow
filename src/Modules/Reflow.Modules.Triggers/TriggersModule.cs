@@ -15,7 +15,7 @@ public static class TriggersModule
     {
         var connectionString = builder.Configuration.GetConnectionString("Reflow");
         builder.Services.AddDbContext<TriggersDbContext>(options =>
-            options.UseNpgsql(connectionString));
+            options.UseNpgsql(connectionString, b => b.MigrationsAssembly("Reflow.Api")));
         builder.Services.AddScoped<TriggersDbContext>();
         builder.Services.AddScoped<ScheduleHandler>();
         builder.Services.AddScoped<WebhookHandler>();

@@ -19,7 +19,7 @@ public static class PipelineExecutionModule
     {
         var connectionString = builder.Configuration.GetConnectionString("Reflow");
         builder.Services.AddDbContext<PipelineExecutionDbContext>(options =>
-            options.UseNpgsql(connectionString));
+            options.UseNpgsql(connectionString, b => b.MigrationsAssembly("Reflow.Api")));
         builder.Services.AddScoped<PipelineExecutionDbContext>();
         builder.Services.AddSingleton<WorkerWakeup>();
         builder.Services.AddSingleton<IRunNotifier, SignalRRunNotifier>();

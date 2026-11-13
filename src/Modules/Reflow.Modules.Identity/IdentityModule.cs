@@ -22,7 +22,7 @@ public static class IdentityModule
         var connectionString = builder.Configuration.GetConnectionString("Reflow");
 
         builder.Services.AddDbContext<IdentityDbContext>(options =>
-            options.UseNpgsql(connectionString));
+            options.UseNpgsql(connectionString, b => b.MigrationsAssembly("Reflow.Api")));
 
         builder.Services.AddIdentityCore<User>(options =>
         {

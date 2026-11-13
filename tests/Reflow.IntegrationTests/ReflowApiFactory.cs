@@ -33,6 +33,7 @@ public class ReflowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("RateLimiting:GeneralPermitLimit", "10000");
         builder.UseSetting("WorkflowExecution:AllowPrivateNetwork", "false");
         builder.UseSetting("Triggers:TickSeconds", "2");
+        builder.UseSetting("Database:AutoMigrate", "false");
     }
 
     public async Task InitializeAsync()

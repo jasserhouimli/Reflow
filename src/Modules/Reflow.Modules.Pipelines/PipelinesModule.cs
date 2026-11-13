@@ -26,7 +26,7 @@ public static class PipelinesModule
     {
         var connectionString = builder.Configuration.GetConnectionString("Reflow");
         builder.Services.AddDbContext<PipelinesDbContext>(options =>
-            options.UseNpgsql(connectionString));
+            options.UseNpgsql(connectionString, b => b.MigrationsAssembly("Reflow.Api")));
         builder.Services.AddScoped<PipelinesDbContext>();
         builder.Services.AddValidatorsFromAssemblyContaining<PipelinesDbContext>();
         builder.Services.AddScoped<CreatePipelineHandler>();
