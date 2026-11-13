@@ -100,9 +100,8 @@ jobs:
 
       - name: Deploy to Azure Container Apps
         if: github.ref == 'refs/heads/master'
-        run: |
-          az config set extension.use_dynamic_install=yes_without_prompt
-          az containerapp update \
-            --name container-app-e6e5 \
-            --resource-group rg-e6e5 \
-            --image ghcr.io/${{ steps.repo_owner.outputs.owner }}/reflow-api:${{ github.sha }}
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          containerAppName: container-app-e6e5
+          resourceGroup: rg-e6e5
+          imageToDeploy: ghcr.io/${{ steps.repo_owner.outputs.owner }}/reflow-api:${{ github.sha }}
