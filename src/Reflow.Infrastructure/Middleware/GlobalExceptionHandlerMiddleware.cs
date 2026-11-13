@@ -40,8 +40,7 @@ public class GlobalExceptionHandlerMiddleware
                 UnauthorizedAccessException => (HttpStatusCode.Unauthorized, "Unauthorized"),
                 KeyNotFoundException => (HttpStatusCode.NotFound, "Resource not found"),
                 InvalidOperationException invalidOp => (HttpStatusCode.BadRequest, invalidOp.Message),
-                _ => (HttpStatusCode.InternalServerError,
-                    _env.IsDevelopment() ? ex.Message : "An unexpected server error occurred")
+                _ => (HttpStatusCode.InternalServerError, ex.Message)
             };
 
             context.Response.StatusCode = (int)statusCode;

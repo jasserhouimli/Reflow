@@ -164,11 +164,10 @@ if (app.Configuration.GetValue("Database:AutoMigrate", true))
 
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
+
+app.MapGet("/", () => Results.Redirect("/swagger"));
 
 app.UseHttpsRedirection();
 
