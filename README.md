@@ -67,6 +67,7 @@ persisted and deduplicated on `(trigger, external event id)`. Tables referenced 
 |------|--------------|
 | `csv.read` | Parse CSV text into a table |
 | `json.read` | Parse JSON text or unpack an upstream JSON column |
+| `file.read` | Read an uploaded CSV/JSON source file into a table |
 | `trigger.payload` | Parse the run's webhook or schedule payload |
 | `filter` | `WHERE` predicate compiled to SQL (8 operators) |
 | `transform` | `SELECT` / `EXCLUDE` / `RENAME` compiled to SQL |

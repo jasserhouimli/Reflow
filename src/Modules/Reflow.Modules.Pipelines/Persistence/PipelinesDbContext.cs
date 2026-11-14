@@ -11,6 +11,7 @@ public class PipelinesDbContext : DbContext
     public DbSet<PipelineNode> PipelineNodes => Set<PipelineNode>();
     public DbSet<PipelineEdge> PipelineEdges => Set<PipelineEdge>();
     public DbSet<PipelineVersion> PipelineVersions => Set<PipelineVersion>();
+    public DbSet<SourceFile> SourceFiles => Set<SourceFile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -57,6 +58,18 @@ public class PipelinesDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.PipelineId, e.VersionNumber }).IsUnique();
             entity.Property(e => e.DefinitionJson).IsRequired();
+        });
+
+        modelBuilder.Entity<SourceFile>(entity =>
+        {
+            entity.ToTable("SourceFiles");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.OwnerId);
+            entity.HasIndex(e => new { e.OwnerId, e.Sha256, e.FileName });
+            entity.Property(e => e.FileName).IsRequired().HasMaxLength(260);
+            entity.Property(e => e.ContentType).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Sha256).IsRequired().HasMaxLength(64);
+            entity.Property(e => e.Content).IsRequired();
         });
     }
 }

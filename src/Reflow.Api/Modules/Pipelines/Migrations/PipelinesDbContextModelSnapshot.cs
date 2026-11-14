@@ -152,6 +152,49 @@ namespace Reflow.Api.Modules.Pipelines.Migrations
                     b.ToTable("PipelineVersions", "pipelines");
                 });
 
+            modelBuilder.Entity("Reflow.Modules.Pipelines.Domain.SourceFile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("character varying(260)");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId");
+
+                    b.HasIndex("OwnerId", "Sha256", "FileName");
+
+                    b.ToTable("SourceFiles", "pipelines");
+                });
+
             modelBuilder.Entity("Reflow.Modules.Pipelines.Domain.PipelineEdge", b =>
                 {
                     b.HasOne("Reflow.Modules.Pipelines.Domain.Pipeline", null)

@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Reflow.Modules.Pipelines.Features.ArchivePipeline;
 using Reflow.Modules.Pipelines.Features.CreatePipeline;
 using Reflow.Modules.Pipelines.Features.DeletePipeline;
+using Reflow.Modules.Pipelines.Features.Files;
 using Reflow.Modules.Pipelines.Features.GetPipeline;
 using Reflow.Modules.Pipelines.Features.ListPipelines;
 using Reflow.Modules.Pipelines.Features.PublishPipeline;
@@ -16,6 +17,7 @@ using Reflow.Modules.PipelineExecution.Snapshots;
 using Reflow.Modules.Pipelines.Features.Access;
 using Reflow.Modules.Pipelines.Features.Snapshots;
 using Reflow.Modules.Pipelines.Persistence;
+using Reflow.Modules.NodeTypes.FileRead;
 using Reflow.Modules.Triggers;
 
 namespace Reflow.Modules.Pipelines;
@@ -34,6 +36,13 @@ public static class PipelinesModule
         builder.Services.AddScoped<PublishPipelineHandler>();
         builder.Services.AddScoped<IPipelineSnapshotProvider, PipelineSnapshotProvider>();
         builder.Services.AddScoped<IPipelineAccessChecker, PipelineAccessChecker>();
+
+        builder.Services.AddScoped<UploadFileHandler>();
+        builder.Services.AddScoped<ListFilesHandler>();
+        builder.Services.AddScoped<DeleteFileHandler>();
+        // Singleton adapter: node handlers are singletons and cannot capture a
+        // scoped DbContext, so it resolves one per read.
+        builder.Services.AddSingleton<IFileSourceReader, FileSourceReader>();
     }
 
     public static void MapEndpoints(WebApplication app)
@@ -47,5 +56,8 @@ public static class PipelinesModule
         PublishPipelineEndpoint.Map(app);
         ArchivePipelineEndpoint.Map(app);
         VersionEndpoints.Map(app);
+        UploadFileEndpoint.Map(app);
+        ListFilesEndpoint.Map(app);
+        DeleteFileEndpoint.Map(app);
     }
 }

@@ -102,10 +102,25 @@ export interface NodeDefinition {
 
 export const nodeTypes = {
   list: async () => {
-    const res = await fetch('/api/node-types', { credentials: 'include' });
+    const res = await fetch(`${BACKEND_URL}/api/node-types`, { credentials: 'include' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<NodeDefinition[]>;
   },
+};
+
+export interface SourceFile {
+  id: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
+export const files = {
+  list: () => request<SourceFile[]>('/files'),
+  upload: (fileName: string, content: string) =>
+    request<SourceFile>('/files', { method: 'POST', body: JSON.stringify({ fileName, content }) }),
+  remove: (id: string) => request<void>(`/files/${id}`, { method: 'DELETE' }),
 };
 
 export interface PipelineRun {

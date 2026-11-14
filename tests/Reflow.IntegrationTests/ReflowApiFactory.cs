@@ -49,13 +49,15 @@ public class ReflowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
             await using var admin = new NpgsqlConnection(AdminConnectionString);
             await admin.OpenAsync();
-            await using (var check = new NpgsqlCommand("SELECT 1 FROM pg_database WHERE datname='reflow_test'", admin))
+            // Recreate from scratch so the schema always matches the current
+            // model; a stale local database would otherwise hide new tables.
+            await using (var drop = new NpgsqlCommand("DROP DATABASE IF EXISTS reflow_test WITH (FORCE)", admin))
             {
-                if (await check.ExecuteScalarAsync() is null)
-                {
-                    await using var create = new NpgsqlCommand("CREATE DATABASE reflow_test", admin);
-                    await create.ExecuteNonQueryAsync();
-                }
+                await drop.ExecuteNonQueryAsync();
+            }
+            await using (var create = new NpgsqlCommand("CREATE DATABASE reflow_test", admin))
+            {
+                await create.ExecuteNonQueryAsync();
             }
 
             // NOTE: DbContext.Database.EnsureCreated() is a no-op when the database

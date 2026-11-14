@@ -7,11 +7,11 @@ import {
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import {
-  pipelines, runs, triggers, nodeTypes, versions, artifactUrl,
+  pipelines, runs, triggers, nodeTypes, versions, artifactUrl, files,
   RUN_STATUSES, TASK_STATUSES, PIPELINE_STATUSES,
   type PipelineDetail, type PipelineEdge,
   type NodeDefinition, type PipelineRun, type TaskRun, type RunLog, type TriggerItem,
-  type TaskDetail, type TaskAttempt, type VersionDetail,
+  type TaskDetail, type TaskAttempt, type VersionDetail, type SourceFile,
 } from "@/api/client"
 import { subscribeToRun } from "@/api/realtime"
 import { Button } from "@/components/ui/button"
@@ -41,6 +41,76 @@ function parseConfig(json: string): Record<string, unknown> | null {
   }
 }
 
+function FileReadConfigForm({ configJson, onChange }: {
+  configJson: string
+  onChange: (json: string) => void
+}) {
+  const cfg = parseConfig(configJson) ?? {}
+  const [available, setAvailable] = useState<SourceFile[]>([])
+  const [error, setError] = useState("")
+  const [busy, setBusy] = useState(false)
+
+  const set = (k: string, v: unknown) => onChange(JSON.stringify({ ...cfg, [k]: v }, null, 1))
+  const str = (k: string) => typeof cfg[k] === "string" ? cfg[k] as string : ""
+
+  useEffect(() => {
+    let cancelled = false
+    files.list().then(f => { if (!cancelled) setAvailable(f) }).catch(() => { if (!cancelled) setAvailable([]) })
+    return () => { cancelled = true }
+  }, [])
+
+  const upload = async (file: File) => {
+    setBusy(true)
+    setError("")
+    try {
+      const content = await file.text()
+      const created = await files.upload(file.name, content)
+      setAvailable(await files.list())
+      set("fileId", created.id)
+      set("format", file.name.toLowerCase().endsWith(".json") ? "json" : "csv")
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const isJson = str("format") === "json"
+
+  return (
+    <div className="space-y-2">
+      <label className="text-xs block">Source file
+        <select className="h-8 rounded-md border px-2 text-xs w-full"
+          value={str("fileId")}
+          onChange={e => set("fileId", e.target.value)}>
+          <option value="">— select a file —</option>
+          {available.map(f => <option key={f.id} value={f.id}>{f.fileName}</option>)}
+        </select>
+      </label>
+      <label className="text-xs block">Upload CSV or JSON
+        <input type="file" accept=".csv,.json" disabled={busy} className="block w-full text-xs"
+          onChange={e => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = "" }} />
+      </label>
+      {busy && <p className="text-xs text-muted-foreground">Uploading…</p>}
+      {error && <p className="text-xs text-destructive">{error}</p>}
+      {!str("fileId") && <p className="text-xs text-muted-foreground">Select or upload a file first.</p>}
+      {isJson
+        ? <label className="text-xs block">Root path
+            <Input className="h-8 font-mono" placeholder="data.orders"
+              value={str("rootPath")} onChange={e => set("rootPath", e.target.value)} />
+          </label>
+        : <div className="flex gap-2">
+            <label className="text-xs">Delimiter<Input className="h-8 w-16" value={str("delimiter") || ","}
+              onChange={e => set("delimiter", e.target.value.slice(0, 1) || ",")} /></label>
+            <label className="text-xs flex items-center gap-1 mt-5">
+              <input type="checkbox" checked={cfg["hasHeader"] !== false}
+                onChange={e => set("hasHeader", e.target.checked)} /> header
+            </label>
+          </div>}
+    </div>
+  )
+}
+
 function NodeConfigForm({ nodeType, configJson, onChange }: {
   nodeType: string
   configJson: string
@@ -60,6 +130,8 @@ function NodeConfigForm({ nodeType, configJson, onChange }: {
   const bool = (k: string, dflt: boolean) => typeof cfg[k] === "boolean" ? cfg[k] as boolean : dflt
 
   switch (nodeType) {
+    case "file.read":
+      return <FileReadConfigForm configJson={configJson} onChange={onChange} />
     case "csv.read":
       return (
         <div className="space-y-2">
