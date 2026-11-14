@@ -94,7 +94,19 @@ Ai__Model=llama-3.3-70b-versatile
 ```
 
 Any OpenAI-compatible chat-completions endpoint works. Only the caller's file
-ids and names are sent to the model — never file contents.
+ids and names are sent to the model — never file contents. Gemini's compatibility
+layer is one option:
+
+```text
+Ai__BaseUrl=https://generativelanguage.googleapis.com/v1beta/openai/
+Ai__Model=gemini-4-hydrogen
+Ai__TimeoutSeconds=120
+```
+
+Free tiers reject bursts with `503` instead of queueing. The client retries that
+status once (`Ai__MaxTransientRetries`, default `1`) before reporting the
+provider as unavailable. Slow free models may need a larger
+`Ai__TimeoutSeconds` (the default is 30).
 
 ## Testing
 

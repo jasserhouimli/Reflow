@@ -16,6 +16,15 @@ public sealed class AiOptions
 
     public int TimeoutSeconds { get; set; } = 30;
 
+    /// <summary>
+    /// Bounded retries for transient provider capacity errors (HTTP 503). Free
+    /// tiers reject bursts with 503 rather than queueing, so one retry turns a
+    /// busy provider into a slower success instead of a hard failure.
+    /// </summary>
+    public int MaxTransientRetries { get; set; } = 1;
+
+    public int RetryDelayMilliseconds { get; set; } = 1000;
+
     /// <summary>How many times an invalid draft is sent back for repair.</summary>
     public int MaxRepairs { get; set; } = 2;
 

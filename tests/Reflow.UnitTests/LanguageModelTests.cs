@@ -39,6 +39,7 @@ public class OpenAiCompatibleLanguageModelTests
             Model = "test-model",
             ApiKey = "secret-key",
             MaxOutputTokens = 321,
+            RetryDelayMilliseconds = 0,
         });
         return new OpenAiCompatibleLanguageModel(
             new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) }, options);
@@ -111,5 +112,57 @@ public class OpenAiCompatibleLanguageModelTests
             () => model.CompleteJsonAsync("s", "u", default));
 
         Assert.Equal(502, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task RetriesOnceWhenProviderIsTemporarilyUnavailable()
+    {
+        var calls = 0;
+        var handler = new StubHandler(_ => ++calls == 1
+            ? JsonResponse("""{ "error": { "message": "high demand" } }""", HttpStatusCode.ServiceUnavailable)
+            : JsonResponse("""{ "choices": [ { "message": { "content": "{}" } } ] }"""));
+        var model = Create(handler);
+
+        var content = await model.CompleteJsonAsync("s", "u", default);
+
+        Assert.Equal("{}", content);
+        Assert.Equal(2, calls);
+    }
+
+    [Fact]
+    public async Task GivesUpAfterBoundedTransientRetries()
+    {
+        var calls = 0;
+        var handler = new StubHandler(_ =>
+        {
+            calls++;
+            return JsonResponse("""{ "error": { "message": "high demand" } }""",
+                HttpStatusCode.ServiceUnavailable);
+        });
+        var model = Create(handler);
+
+        var ex = await Assert.ThrowsAsync<LanguageModelException>(
+            () => model.CompleteJsonAsync("s", "u", default));
+
+        Assert.Equal(503, ex.StatusCode);
+        Assert.Equal(2, calls); // first attempt plus one retry
+    }
+
+    [Fact]
+    public async Task DoesNotRetryErrorsThatCannotRecover()
+    {
+        var calls = 0;
+        var handler = new StubHandler(_ =>
+        {
+            calls++;
+            return JsonResponse("""{ "error": { "message": "bad request" } }""",
+                HttpStatusCode.BadRequest);
+        });
+        var model = Create(handler);
+
+        await Assert.ThrowsAsync<LanguageModelException>(
+            () => model.CompleteJsonAsync("s", "u", default));
+
+        Assert.Equal(1, calls);
     }
 }
