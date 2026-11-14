@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import {
-  ReactFlow, Background, Controls, MiniMap, Handle, Position,
+  ReactFlow, ReactFlowProvider, useReactFlow, Background, Controls, MiniMap, Handle, Position,
   applyNodeChanges, applyEdgeChanges, addEdge,
   type Node, type Edge, type NodeChange, type EdgeChange, type Connection,
   type NodeProps,
@@ -346,7 +346,16 @@ const snapshot = (name: string, nodes: Node[], edges: Edge[]) =>
     edges: edges.map(e => ({ s: e.source, t: e.target })),
   })
 
-export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
+export function PipelineEditorPage(props: Props) {
+  return (
+    <ReactFlowProvider>
+      <PipelineEditor {...props} />
+    </ReactFlowProvider>
+  )
+}
+
+function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
+  const { screenToFlowPosition } = useReactFlow()
   const [detail, setDetail] = useState<PipelineDetail | null>(null)
   const [defs, setDefs] = useState<NodeDefinition[]>([])
   const [name, setName] = useState("")
@@ -527,19 +536,22 @@ export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
     e.preventDefault()
     const type = e.dataTransfer.getData("application/reflow-nodetype")
     if (!type) return
-    const bounds = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const position = { x: e.clientX - bounds.left - 70, y: e.clientY - bounds.top - 30 }
+    // Convert screen coordinates through React Flow's current pan/zoom
+    // transform; DOM offsets only line up at the default viewport.
+    const point = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+    const definition = defs.find(d => d.type === type)
     const id = `n${Date.now().toString(36)}`
     setNodes(ns => [...ns, {
-      id, type: "pipelineNode", position,
+      id, type: "pipelineNode",
+      position: { x: point.x - 70, y: point.y - 30 },
       data: {
-        label: id,
+        label: definition?.displayName ?? type,
         nodeType: type,
         configJson: type === "data.sql" ? "{\"query\":\"SELECT * FROM input\"}" : "{}",
-        category: defs.find(d => d.type === type)?.category,
+        category: definition?.category,
       },
     }])
-  }, [defs])
+  }, [defs, screenToFlowPosition])
 
   const selected = nodes.find(n => n.id === selectedId)
   const activeRun = runList.find(r => r.id === runId) ?? null
@@ -668,9 +680,12 @@ export function PipelineEditorPage({ pipelineId, onBack, onLogout }: Props) {
         <div className="w-96 border-l overflow-auto">
           {selected ? (
             <div className="p-3 space-y-3">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium font-mono">{selected.id}</p>
-                <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700">
+              <div className="flex items-start gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{(selected.data as unknown as FlowNodeData).label}</p>
+                  <p className="text-[10px] font-mono text-muted-foreground truncate">{selected.id}</p>
+                </div>
+                <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700 shrink-0">
                   {(selected.data as unknown as FlowNodeData).nodeType}
                 </span>
               </div>
