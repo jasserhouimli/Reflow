@@ -123,6 +123,35 @@ export const files = {
   remove: (id: string) => request<void>(`/files/${id}`, { method: 'DELETE' }),
 };
 
+export interface GeneratedNode {
+  nodeId: string;
+  nodeType: string;
+  label: string | null;
+  config: Record<string, unknown>;
+}
+
+export interface GeneratedEdge {
+  sourceNodeId: string;
+  targetNodeId: string;
+}
+
+export interface GeneratedWorkflowDraft {
+  name: string;
+  explanation: string;
+  nodes: GeneratedNode[];
+  edges: GeneratedEdge[];
+  warnings: string[];
+  repairAttempts: number;
+}
+
+export const assistant = {
+  generate: (prompt: string) =>
+    request<GeneratedWorkflowDraft>('/assistant/workflows/generate', {
+      method: 'POST',
+      body: JSON.stringify({ prompt }),
+    }),
+};
+
 export interface PipelineRun {
   id: string;
   pipelineId: string;

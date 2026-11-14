@@ -3,6 +3,7 @@ import { pipelines, PIPELINE_STATUSES, type Pipeline } from "@/api/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardHeader, CardTitle } from "@/components/ui/card"
+import { GenerateWithAiDialog } from "@/components/GenerateWithAiDialog"
 
 interface DashboardPageProps {
   user: { id: string; email: string; displayName: string }
@@ -17,6 +18,7 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
+  const [showAi, setShowAi] = useState(false)
 
   useEffect(() => {
     pipelines.list().then(setList).catch(e => setError(e.message)).finally(() => setLoading(false))
@@ -75,12 +77,19 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
       <div className="flex gap-2 mb-4">
         <Input placeholder="New pipeline name" value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key === 'Enter' && create()} />
         <Button onClick={create}>Create</Button>
+        <Button variant="outline" onClick={() => setShowAi(true)}>Generate with AI</Button>
         <Button variant="outline" onClick={createSample} disabled={busy}>{busy ? "…" : "Try a sample"}</Button>
       </div>
       <div className="mb-6">
         <Input placeholder="Search pipelines…" value={query} onChange={e => setQuery(e.target.value)} />
       </div>
       {error && <p className="text-sm text-destructive mb-4">{error}</p>}
+      {showAi && (
+        <GenerateWithAiDialog
+          onClose={() => setShowAi(false)}
+          onCreated={id => { setShowAi(false); onSelectPipeline(id) }}
+        />
+      )}
       {loading ? <p>Loading...</p> : (
         <div className="grid gap-4">
           {shown.map(p => (
