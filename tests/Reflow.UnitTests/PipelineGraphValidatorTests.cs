@@ -1,4 +1,4 @@
-using Reflow.Modules.Pipelines.Validation;
+using Reflow.Infrastructure.Graphs;
 using Xunit;
 
 namespace Reflow.UnitTests;

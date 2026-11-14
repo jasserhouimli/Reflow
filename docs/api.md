@@ -33,6 +33,29 @@ version.
 | POST | `/api/v1/hooks/{token}` | Inbound webhook → `202` (idempotent). |
 | GET | `/api/node-types` | Editor palette definitions. |
 
+## Files
+
+Uploaded sources for `file.read`. Content is stored by the Pipelines module and
+is never returned by the list endpoint.
+
+| Method | Route | Notes |
+|---|---|---|
+| POST | `/api/v1/files` | Upload `{ fileName, content }` (CSV/JSON, 2 MB cap, sha256-deduplicated). |
+| GET | `/api/v1/files` | List the caller's files (id, name, metadata). |
+| DELETE | `/api/v1/files/{id}` | Delete one of the caller's files. |
+
+## Assistant
+
+| Method | Route | Notes |
+|---|---|---|
+| POST | `/api/v1/assistant/workflows/generate` | `{ prompt }` → validated workflow draft (no persistence). |
+
+The assistant returns `{ name, explanation, nodes, edges, warnings, repairAttempts }`.
+It never saves a pipeline: persist the draft through `PUT /api/v1/pipelines/{id}`.
+Responses: `400` invalid prompt, `401` unauthenticated, `422` no valid draft after
+repairs, `429` provider rate limit, `502/504` provider failure or timeout,
+`503` AI not configured.
+
 ## Identity
 
 | Method | Route | Notes |

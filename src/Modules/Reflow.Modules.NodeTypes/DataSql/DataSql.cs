@@ -10,7 +10,7 @@ namespace Reflow.Modules.NodeTypes.DataSql;
 /// ("Orders" → orders). With a single input the table is also available as
 /// `input`. DuckDB in-memory, no file access.
 /// </summary>
-public sealed class DataSqlHandler : INodeHandler
+public sealed class DataSqlHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "data.sql";
     public const int MaxQueryChars = 10000;
@@ -28,6 +28,12 @@ public sealed class DataSqlHandler : INodeHandler
         "Run analytical SQL over upstream tables named after their nodes.",
         new[] { "input" },
         new[] { "output" });
+
+    public IReadOnlyList<NodeConfigField> ConfigSchema =>
+    [
+        new("query", "string", true,
+            "Read-only analytical SQL over upstream tables named after their node ids (lowercased), plus 'input' when there is one upstream"),
+    ];
 
     public IReadOnlyList<string> ValidateConfig(JsonElement config)
     {

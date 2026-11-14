@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Reflow.Infrastructure.Graphs;
 using Reflow.Modules.Pipelines.Persistence;
-using Reflow.Modules.Pipelines.Validation;
 
 namespace Reflow.Modules.Pipelines.Features.ValidatePipeline;
 

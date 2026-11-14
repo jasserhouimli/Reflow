@@ -76,7 +76,7 @@ public static class FileReadConfigParser
 /// Reads an uploaded CSV/JSON source by id. Delegates parsing to the shared
 /// data-plane reader so this node holds no parsing logic of its own.
 /// </summary>
-public sealed class FileReadHandler : INodeHandler
+public sealed class FileReadHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "file.read";
 
@@ -98,6 +98,15 @@ public sealed class FileReadHandler : INodeHandler
         "Read an uploaded CSV or JSON file into a table.",
         Array.Empty<string>(),
         new[] { "output" });
+
+    public IReadOnlyList<NodeConfigField> ConfigSchema =>
+    [
+        new("fileId", "string", true, "Id of one of the user's uploaded files (from the available files list)"),
+        new("format", "string", false, "Source format", ["csv", "json"], "csv"),
+        new("delimiter", "string", false, "Single character delimiter (csv only)", null, ","),
+        new("hasHeader", "boolean", false, "Whether the first row holds column names (csv only)", null, "true"),
+        new("rootPath", "string", false, "Dot path to the array/object to parse (json only)"),
+    ];
 
     public IReadOnlyList<string> ValidateConfig(JsonElement config) =>
         FileReadConfigParser.Parse(config).Errors;

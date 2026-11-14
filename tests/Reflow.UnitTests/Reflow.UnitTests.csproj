@@ -20,6 +20,7 @@
     <ProjectReference Include="..\..\src\Modules\Reflow.Modules.NodeTypes\Reflow.Modules.NodeTypes.csproj" />
     <ProjectReference Include="..\..\src\Modules\Reflow.Modules.PipelineExecution\Reflow.Modules.PipelineExecution.csproj" />
     <ProjectReference Include="..\..\src\Modules\Reflow.Modules.Triggers\Reflow.Modules.Triggers.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Reflow.Modules.AiAssistant\Reflow.Modules.AiAssistant.csproj" />
   </ItemGroup>
 
 </Project>

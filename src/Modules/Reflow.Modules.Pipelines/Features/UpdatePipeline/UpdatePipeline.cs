@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Reflow.Infrastructure.Graphs;
 using Reflow.Infrastructure.Results;
 using Reflow.Modules.Pipelines.Domain;
 using Reflow.Modules.Pipelines.Persistence;
@@ -35,8 +36,8 @@ public class UpdatePipelineHandler(PipelinesDbContext db)
         {
             var nodes = request.Nodes ?? new();
             var edges = request.Edges ?? new();
-            if (nodes.Count > Validation.PipelineGraphValidator.MaxNodes)
-                return Result<object>.Failure($"Too many nodes (max {Validation.PipelineGraphValidator.MaxNodes})", 400);
+            if (nodes.Count > PipelineGraphValidator.MaxNodes)
+                return Result<object>.Failure($"Too many nodes (max {PipelineGraphValidator.MaxNodes})", 400);
             foreach (var n in nodes)
             {
                 if (string.IsNullOrWhiteSpace(n.NodeId) || string.IsNullOrWhiteSpace(n.NodeType))

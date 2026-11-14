@@ -2,6 +2,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Reflow.Infrastructure;
 using Reflow.Infrastructure.Middleware;
+using Reflow.Modules.AiAssistant;
 using Reflow.Modules.NodeTypes;
 using Reflow.Modules.PipelineExecution;
 using Reflow.Modules.Triggers;
@@ -29,6 +30,7 @@ builder.Services.AddReflowInfrastructure();
 IdentityModule.Register(builder);
 PipelinesModule.Register(builder);
 NodeTypesModule.Register(builder);
+AiAssistantModule.Register(builder);
 PipelineExecutionModule.Register(builder);
 TriggersModule.Register(builder);
 
@@ -127,6 +129,15 @@ builder.Services.AddRateLimiter(options =>
         limiterOptions.Window = TimeSpan.FromMinutes(1);
         limiterOptions.QueueLimit = 0;
     });
+
+    // AI calls are the most expensive operation in the system: tighter window.
+    var aiLimit = builder.Configuration.GetValue<int>("RateLimiting:AiPermitLimit", 10);
+    options.AddFixedWindowLimiter("ai", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = aiLimit;
+        limiterOptions.Window = TimeSpan.FromMinutes(1);
+        limiterOptions.QueueLimit = 0;
+    });
 });
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
@@ -183,6 +194,7 @@ app.UseAuthorization();
 IdentityModule.MapEndpoints(app);
 PipelinesModule.MapEndpoints(app);
 NodeTypesModule.MapEndpoints(app);
+AiAssistantModule.MapEndpoints(app);
 PipelineExecutionModule.MapEndpoints(app);
 TriggersModule.MapEndpoints(app);
 

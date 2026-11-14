@@ -1,13 +1,16 @@
 using System.Text.Json;
 
-namespace Reflow.Modules.Pipelines.Validation;
+namespace Reflow.Infrastructure.Graphs;
 
 public sealed record GraphNode(string NodeId, string NodeType, string? ConfigJson);
 public sealed record GraphEdge(string SourceNodeId, string TargetNodeId);
 
 /// <summary>
-/// Structural DAG validation. Per-type config schemas arrive with NodeTypes;
-/// here we check shape only (ids, edges, cycles, limits).
+/// Structural DAG validation shared by the pipeline write path, publishing and
+/// the AI draft validator. Per-type config schemas belong to NodeTypes; this
+/// checks shape only (ids, edges, cycles, limits).
+/// Lives in the shared kernel so modules can validate drafts without taking a
+/// dependency on one another.
 /// </summary>
 public static class PipelineGraphValidator
 {

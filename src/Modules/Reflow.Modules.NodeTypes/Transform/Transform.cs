@@ -9,7 +9,7 @@ namespace Reflow.Modules.NodeTypes.Transform;
 /// Reshape columns: select, drop, rename. Compiles to one DuckDB SELECT
 /// (EXCLUDE / RENAME). Names refer to input columns.
 /// </summary>
-public sealed class TransformHandler : INodeHandler
+public sealed class TransformHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "transform";
 
@@ -26,6 +26,13 @@ public sealed class TransformHandler : INodeHandler
         "Select, drop, or rename columns.",
         new[] { "input" },
         new[] { "output" });
+
+    public IReadOnlyList<NodeConfigField> ConfigSchema =>
+    [
+        new("select", "string[]", false, "Columns to keep, in order"),
+        new("dropColumns", "string[]", false, "Columns to remove"),
+        new("renames", "object", false, "Map of old column name to new column name"),
+    ];
 
     public IReadOnlyList<string> ValidateConfig(JsonElement config)
     {

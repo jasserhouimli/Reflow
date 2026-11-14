@@ -6,7 +6,7 @@ using Reflow.Modules.NodeTypes.Abstractions;
 namespace Reflow.Modules.NodeTypes.TriggerPayload;
 
 /// <summary>Parses the payload that started the run (webhook body / schedule tick).</summary>
-public sealed class TriggerPayloadHandler : INodeHandler
+public sealed class TriggerPayloadHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "trigger.payload";
 
@@ -19,6 +19,11 @@ public sealed class TriggerPayloadHandler : INodeHandler
         "Parse the JSON payload that started this run.",
         Array.Empty<string>(),
         new[] { "output" });
+
+    public IReadOnlyList<NodeConfigField> ConfigSchema =>
+    [
+        new("rootPath", "string", false, "Dot path to the object/array inside the trigger payload", null, "order"),
+    ];
 
     public IReadOnlyList<string> ValidateConfig(JsonElement config)
     {

@@ -4,8 +4,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Reflow.Infrastructure.Results;
 using Reflow.Modules.Pipelines.Domain;
+using Reflow.Infrastructure.Graphs;
 using Reflow.Modules.Pipelines.Persistence;
-using Reflow.Modules.Pipelines.Validation;
 
 namespace Reflow.Modules.Pipelines.Features.PublishPipeline;
 

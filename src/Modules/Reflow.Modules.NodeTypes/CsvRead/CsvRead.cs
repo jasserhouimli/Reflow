@@ -46,7 +46,7 @@ public static class CsvReadValidator
     }
 }
 
-public sealed class CsvReadHandler : INodeHandler
+public sealed class CsvReadHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "csv.read";
 
@@ -63,6 +63,13 @@ public sealed class CsvReadHandler : INodeHandler
         "Parse CSV text into a table.",
         Array.Empty<string>(),
         new[] { "output" });
+
+    public IReadOnlyList<NodeConfigField> ConfigSchema =>
+    [
+        new("csvText", "string", true, "Inline CSV content"),
+        new("delimiter", "string", false, "Single character delimiter", null, ","),
+        new("hasHeader", "boolean", false, "Whether the first row holds column names", null, "true"),
+    ];
 
     public IReadOnlyList<string> ValidateConfig(JsonElement config) =>
         CsvReadValidator.Parse(config).Errors;

@@ -6,7 +6,7 @@ using Reflow.Modules.NodeTypes.Abstractions;
 namespace Reflow.Modules.NodeTypes.Aggregate;
 
 /// <summary>GROUP BY summarization compiled to DuckDB SQL.</summary>
-public sealed class AggregateHandler : INodeHandler
+public sealed class AggregateHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "aggregate";
 
@@ -28,6 +28,13 @@ public sealed class AggregateHandler : INodeHandler
         "Group rows and compute summaries.",
         new[] { "input" },
         new[] { "output" });
+
+    public IReadOnlyList<NodeConfigField> ConfigSchema =>
+    [
+        new("groupBy", "string[]", false, "Columns to group by"),
+        new("operations", "object[]", true,
+            "Aggregations as objects: { function: count|countDistinct|sum|avg|min|max, column?: string, as?: string }"),
+    ];
 
     public IReadOnlyList<string> ValidateConfig(JsonElement config)
     {

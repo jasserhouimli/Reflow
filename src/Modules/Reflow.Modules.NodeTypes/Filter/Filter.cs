@@ -8,7 +8,7 @@ namespace Reflow.Modules.NodeTypes.Filter;
 /// <summary>
 /// Compiles the predicate to DuckDB SQL. No C# row logic: the engine filters.
 /// </summary>
-public sealed class FilterHandler : INodeHandler
+public sealed class FilterHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "filter";
 
@@ -31,6 +31,14 @@ public sealed class FilterHandler : INodeHandler
         "Keep rows matching a column predicate.",
         new[] { "input" },
         new[] { "output" });
+
+    public IReadOnlyList<NodeConfigField> ConfigSchema =>
+    [
+        new("column", "string", true, "Column to test"),
+        new("operator", "string", true, "Comparison operator",
+            ["equals", "notEquals", "contains", "startsWith", "greaterThan", "lessThan", "isEmpty", "isNotEmpty"]),
+        new("value", "string", false, "Comparison value; omit for isEmpty/isNotEmpty"),
+    ];
 
     public IReadOnlyList<string> ValidateConfig(JsonElement config)
     {

@@ -7,7 +7,7 @@ namespace Reflow.Modules.NodeTypes.Join;
 
 /// <summary>Two-input join compiled to DuckDB SQL. Right-side duplicate
 /// columns are suffixed _right so downstream nodes see unique names.</summary>
-public sealed class JoinHandler : INodeHandler
+public sealed class JoinHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "join";
 
@@ -24,6 +24,14 @@ public sealed class JoinHandler : INodeHandler
         "Combine two tables on key columns.",
         new[] { "left", "right" },
         new[] { "output" });
+
+    public IReadOnlyList<NodeConfigField> ConfigSchema =>
+    [
+        new("on", "string", false, "Shared key column name; use this OR leftOn+rightOn"),
+        new("leftOn", "string", false, "Left key column when names differ"),
+        new("rightOn", "string", false, "Right key column when names differ"),
+        new("how", "string", false, "Join type", ["inner", "left"], "inner"),
+    ];
 
     public IReadOnlyList<string> ValidateConfig(JsonElement config)
     {

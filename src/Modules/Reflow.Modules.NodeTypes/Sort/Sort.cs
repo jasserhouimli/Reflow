@@ -6,7 +6,7 @@ using Reflow.Modules.NodeTypes.Abstractions;
 namespace Reflow.Modules.NodeTypes.Sort;
 
 /// <summary>ORDER BY compiled to DuckDB SQL.</summary>
-public sealed class SortHandler : INodeHandler
+public sealed class SortHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "sort";
 
@@ -23,6 +23,12 @@ public sealed class SortHandler : INodeHandler
         "Order rows by one or more columns.",
         new[] { "input" },
         new[] { "output" });
+
+    public IReadOnlyList<NodeConfigField> ConfigSchema =>
+    [
+        new("orderBy", "object[]", true,
+            "Sort keys as objects: { column: string, direction?: 'asc'|'desc' }"),
+    ];
 
     public IReadOnlyList<string> ValidateConfig(JsonElement config)
     {

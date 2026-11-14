@@ -42,6 +42,7 @@ cross-module calls go through explicit contracts rather than direct table access
 - Live run updates pushed to the editor over SignalR.
 - A registry of independent node types — the engine resolves handlers by type id and contains no type switches.
 - Analytical execution on DuckDB, with CSV/JSON readers and downloadable run artifacts.
+- AI workflow drafts: describe a pipeline in prose and get a validated DAG back. The model proposes; the server validates, and saving still goes through the normal pipeline API.
 
 ## How it works
 
@@ -87,7 +88,8 @@ See the usage guide for trigger configuration and day-to-day workflows.
 - **Real-time:** SignalR
 - **Frontend:** React 19, TypeScript, Vite, Tailwind, React Flow
 - **Tooling:** Serilog, FluentValidation, Cronos, Swagger (dev)
-- **Tests:** xUnit — 84 unit and 25 API integration tests
+- **AI:** provider-agnostic `ILanguageModel`; OpenAI-compatible endpoint (Groq free tier by default), JSON mode plus server-side validation
+- **Tests:** xUnit — 140 unit and 43 API integration tests
 
 ## Architecture
 
@@ -99,10 +101,11 @@ See the usage guide for trigger configuration and day-to-day workflows.
 |--------|---------------|--------|
 | Identity | Register, login, logout, JWT refresh, `/api/v1/auth/*` | Done |
 | Pipelines | CRUD, DAG validation, immutable versions, publish/archive | Done |
-| NodeTypes | Registry, `GET /api/node-types`, 10 slices (sources, shaping, SQL, sinks) | Growing |
+| NodeTypes | Registry, `GET /api/node-types`, 11 slices (sources, shaping, SQL, sinks) | Growing |
 | DataProcessing | In-memory tabular frames, CSV/JSON codecs, DuckDB analytical engine, run artifacts | Done |
 | PipelineExecution | Runs, attempts, logs, worker, retries, cancel, recovery | Done |
 | Triggers | Cron schedules, idempotent webhooks, scheduler worker | Done |
+| AiAssistant | Prompt catalog from the node registry, draft parsing/validation, bounded repair | Done |
 
 ## Quick start
 
@@ -123,7 +126,8 @@ cd frontend && npm install && npm run dev   # http://localhost:5173
 ## Documentation
 
 - [Usage guide](docs/usage.md) — running Reflow, trigger configuration, and testing.
-- [API reference](docs/api.md) — the pipeline, run, task, and node-type endpoints.
+- [API reference](docs/api.md) — the pipeline, run, task, file, assistant, and node-type endpoints.
+- [ADR 001](docs/adr/001-ai-workflow-generation.md) — why the AI feature produces drafts, not executions.
 
 ## Roadmap
 

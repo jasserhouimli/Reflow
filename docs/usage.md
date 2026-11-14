@@ -68,6 +68,34 @@ POST /api/v1/hooks/{token}                       inbound JSON → 202 { id }
 Inside a pipeline, the `trigger.payload` node (with an optional `rootPath`) parses
 the payload so downstream SQL can query it like any other table.
 
+## AI workflow drafts
+
+`file.read` needs an uploaded source. Upload it first, then ask the assistant to
+draft a pipeline around it:
+
+```text
+POST /api/v1/files                          { fileName, content } → { id }
+POST /api/v1/assistant/workflows/generate   { prompt } → draft
+```
+
+The draft is not saved. Review it, then send the nodes and edges to
+`PUT /api/v1/pipelines/{id}`. The server validates every node against the same
+handlers the editor uses; an invalid model response is repaired at most twice
+before the endpoint returns `422`.
+
+AI is off by default. To enable it, provide a provider key and turn the feature
+on through configuration (environment variables in deployment):
+
+```text
+Ai__Enabled=true
+Ai__ApiKey=<provider key>
+Ai__BaseUrl=https://api.groq.com/openai/v1
+Ai__Model=llama-3.3-70b-versatile
+```
+
+Any OpenAI-compatible chat-completions endpoint works. Only the caller's file
+ids and names are sent to the model — never file contents.
+
 ## Testing
 
 ```bash

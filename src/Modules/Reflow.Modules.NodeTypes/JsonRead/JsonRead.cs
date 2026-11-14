@@ -9,7 +9,7 @@ namespace Reflow.Modules.NodeTypes.JsonRead;
 /// Parses standalone JSON text, or unpacks a JSON column from one upstream
 /// frame (objects merge into the row, arrays explode into rows).
 /// </summary>
-public sealed class JsonReadHandler : INodeHandler
+public sealed class JsonReadHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "json.read";
 
@@ -22,6 +22,13 @@ public sealed class JsonReadHandler : INodeHandler
         "Parse JSON text or unpack a JSON column from upstream.",
         new[] { "input" },
         new[] { "output" });
+
+    public IReadOnlyList<NodeConfigField> ConfigSchema =>
+    [
+        new("jsonText", "string", false, "Inline JSON text; use this OR 'column', never both"),
+        new("column", "string", false, "Upstream column containing JSON to unpack"),
+        new("rootPath", "string", false, "Dot path to the array/object to parse", null, "data.orders"),
+    ];
 
     public IReadOnlyList<string> ValidateConfig(JsonElement config)
     {

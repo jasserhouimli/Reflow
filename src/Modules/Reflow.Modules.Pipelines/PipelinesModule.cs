@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Reflow.Infrastructure.Files;
 using Reflow.Modules.Pipelines.Features.ArchivePipeline;
 using Reflow.Modules.Pipelines.Features.CreatePipeline;
 using Reflow.Modules.Pipelines.Features.DeletePipeline;
@@ -40,6 +41,8 @@ public static class PipelinesModule
         builder.Services.AddScoped<UploadFileHandler>();
         builder.Services.AddScoped<ListFilesHandler>();
         builder.Services.AddScoped<DeleteFileHandler>();
+        // Read-only view consumed by the assistant module (id + name only).
+        builder.Services.AddScoped<ISourceFileCatalog, FileCatalog>();
         // Singleton adapter: node handlers are singletons and cannot capture a
         // scoped DbContext, so it resolves one per read.
         builder.Services.AddSingleton<IFileSourceReader, FileSourceReader>();

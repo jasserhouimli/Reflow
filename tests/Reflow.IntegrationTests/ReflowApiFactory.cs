@@ -1,9 +1,13 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Npgsql;
+using Reflow.Modules.AiAssistant.Abstractions;
 using Reflow.Modules.Identity.Persistence;
 using Reflow.Modules.PipelineExecution.Persistence;
 using Reflow.Modules.Pipelines.Persistence;
@@ -23,6 +27,9 @@ public class ReflowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     private static readonly SemaphoreSlim InitLock = new(1, 1);
     private static bool _initialized;
 
+    /// <summary>Outbound model call is the only thing replaced in integration tests.</summary>
+    public FakeLanguageModel LanguageModel { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("ConnectionStrings:Reflow", TestConnectionString);
@@ -31,9 +38,18 @@ public class ReflowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("Jwt:Audience", "Reflow");
         builder.UseSetting("RateLimiting:AuthPermitLimit", "1000");
         builder.UseSetting("RateLimiting:GeneralPermitLimit", "10000");
+        builder.UseSetting("RateLimiting:AiPermitLimit", "10000");
+        builder.UseSetting("Ai:Enabled", "true");
+        builder.UseSetting("Ai:ApiKey", "integration-test-key");
         builder.UseSetting("WorkflowExecution:AllowPrivateNetwork", "false");
         builder.UseSetting("Triggers:TickSeconds", "2");
         builder.UseSetting("Database:AutoMigrate", "false");
+
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<ILanguageModel>();
+            services.AddSingleton<ILanguageModel>(LanguageModel);
+        });
     }
 
     public async Task InitializeAsync()

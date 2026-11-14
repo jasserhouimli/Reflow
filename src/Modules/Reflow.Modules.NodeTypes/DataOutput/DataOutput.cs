@@ -9,7 +9,7 @@ namespace Reflow.Modules.NodeTypes.DataOutput;
 /// Saves the input frame as a downloadable run artifact (JSON/CSV).
 /// Passes the frame through so downstream nodes keep working.
 /// </summary>
-public sealed class DataOutputHandler : INodeHandler
+public sealed class DataOutputHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "data.output";
 
@@ -26,6 +26,11 @@ public sealed class DataOutputHandler : INodeHandler
         "Save the table as a downloadable file artifact.",
         new[] { "input" },
         new[] { "output" });
+
+    public IReadOnlyList<NodeConfigField> ConfigSchema =>
+    [
+        new("format", "string", false, "Artifact format", ["json", "csv"], "json"),
+    ];
 
     public IReadOnlyList<string> ValidateConfig(JsonElement config)
     {
