@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import {
   ReactFlow, ReactFlowProvider, useReactFlow, Background, Controls, MiniMap, Handle, Position,
-  applyNodeChanges, applyEdgeChanges, addEdge,
+  applyNodeChanges, applyEdgeChanges, addEdge, MarkerType,
   type Node, type Edge, type NodeChange, type EdgeChange, type Connection,
   type NodeProps,
 } from "@xyflow/react"
@@ -329,8 +329,24 @@ const toFlow = (d: PipelineDetail, defs?: NodeDefinition[]): Node[] =>
     },
   }))
 
+// Connections must stay readable when fitView zooms a wide graph out. The
+// library default is a 1px light-grey line, which shrinks below a pixel and
+// effectively disappears at 0.5 zoom.
+const EDGE_COLOR = "#64748b"
+
+const edgeVisuals = () => ({
+  type: "smoothstep" as const,
+  style: { stroke: EDGE_COLOR, strokeWidth: 2 },
+  markerEnd: { type: MarkerType.ArrowClosed, color: EDGE_COLOR, width: 18, height: 18 },
+})
+
 const toFlowEdges = (edges: PipelineEdge[]): Edge[] =>
-  edges.map((e, i) => ({ id: `e${i}-${e.sourceNodeId}-${e.targetNodeId}`, source: e.sourceNodeId, target: e.targetNodeId }))
+  edges.map((e, i) => ({
+    ...edgeVisuals(),
+    id: `e${i}-${e.sourceNodeId}-${e.targetNodeId}`,
+    source: e.sourceNodeId,
+    target: e.targetNodeId,
+  }))
 
 const snapshot = (name: string, nodes: Node[], edges: Edge[]) =>
   JSON.stringify({
@@ -530,7 +546,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
   const onEdgesChange = useCallback(
     (changes: EdgeChange[]) => setEdges(es => applyEdgeChanges(changes, es)), [])
   const onConnect = useCallback(
-    (c: Connection) => setEdges(es => addEdge(c, es)), [])
+    (c: Connection) => setEdges(es => addEdge({ ...c, ...edgeVisuals() }, es)), [])
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
