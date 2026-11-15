@@ -4,7 +4,7 @@ using Reflow.Modules.DataProcessing.Abstractions;
 
 namespace Reflow.Modules.DataProcessing.Artifacts;
 
-/// <summary>Local-disk artifact store. Paths are sanitized; sizes capped.</summary>
+// File-system implementation for run artifacts with path sanitization and size limits.
 public sealed class LocalArtifactStore : IDataArtifactStore
 {
     public const long MaxArtifactBytes = 10 * 1024 * 1024;

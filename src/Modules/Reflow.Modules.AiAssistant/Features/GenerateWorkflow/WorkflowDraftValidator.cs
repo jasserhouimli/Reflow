@@ -4,11 +4,7 @@ using Reflow.Modules.NodeTypes.Registry;
 
 namespace Reflow.Modules.AiAssistant.Features.GenerateWorkflow;
 
-/// <summary>
-/// The trust boundary. Model output is untrusted input: every type must exist in
-/// the registry, every config must pass the node's own validator, and the graph
-/// must pass the same structural rules the normal write path enforces.
-/// </summary>
+// Validates untrusted LLM drafts against node types, config schemas, and acyclicity rules.
 public sealed class WorkflowDraftValidator(NodeTypeRegistry registry)
 {
     public const int MaxNodeIdLength = 40;

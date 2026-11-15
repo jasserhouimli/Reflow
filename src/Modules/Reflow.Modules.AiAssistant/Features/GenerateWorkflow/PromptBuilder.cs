@@ -7,11 +7,7 @@ using Reflow.Modules.NodeTypes.Registry;
 
 namespace Reflow.Modules.AiAssistant.Features.GenerateWorkflow;
 
-/// <summary>
-/// Builds prompts from the live node catalog. The catalog is generated from the
-/// registry and each node's own <see cref="INodeConfigSchema"/>, never from a
-/// hand-maintained document that could drift.
-/// </summary>
+// Generates the LLM system prompt dynamically from live NodeTypeRegistry schemas.
 public sealed class PromptBuilder(NodeTypeRegistry registry, IOptions<AiOptions> options)
 {
     public string BuildSystemPrompt(IReadOnlyList<SourceFileRef> files)

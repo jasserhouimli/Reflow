@@ -5,10 +5,7 @@ using Reflow.Modules.NodeTypes.Abstractions;
 
 namespace Reflow.Modules.NodeTypes.DataOutput;
 
-/// <summary>
-/// Saves the input frame as a downloadable run artifact (JSON/CSV).
-/// Passes the frame through so downstream nodes keep working.
-/// </summary>
+// Writes the incoming frame to disk as a downloadable artifact (JSON/CSV).
 public sealed class DataOutputHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "data.output";

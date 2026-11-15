@@ -2,8 +2,7 @@ using System.Text.Json;
 
 namespace Reflow.Modules.NodeTypes.Abstractions;
 
-/// <summary>One config property of a node type. Prompt-facing metadata only:
-/// runtime validation stays in <see cref="INodeHandler.ValidateConfig"/>.</summary>
+// Configuration property metadata exposed by node types for dynamic prompt generation.
 public sealed record NodeConfigField(
     string Name,
     string Type,
@@ -12,10 +11,7 @@ public sealed record NodeConfigField(
     IReadOnlyList<string>? AllowedValues = null,
     string? Example = null);
 
-/// <summary>
-/// Optional contract: a node slice describes its own configuration so the AI
-/// catalog and the repair feedback come from the same place the node validates.
-/// </summary>
+// Implemented by node types that provide self-describing config schemas.
 public interface INodeConfigSchema
 {
     IReadOnlyList<NodeConfigField> ConfigSchema { get; }

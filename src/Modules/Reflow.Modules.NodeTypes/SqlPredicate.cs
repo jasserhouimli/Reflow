@@ -1,9 +1,6 @@
 namespace Reflow.Modules.NodeTypes;
 
-/// <summary>
-/// Operator → DuckDB SQL predicate. Identifiers quoted, literals escaped;
-/// LIKE wildcards in user values are escaped. Shared by SQL-compiling slices.
-/// </summary>
+// Helpers for escaping column identifiers and literal values in generated SQL.
 public static class SqlPredicate
 {
     public static string Column(string name) =>

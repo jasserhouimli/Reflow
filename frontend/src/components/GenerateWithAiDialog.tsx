@@ -17,10 +17,7 @@ const EXAMPLES = [
   "Parse a webhook payload and save the result as a CSV artifact",
 ]
 
-/**
- * AI v1 is new-pipeline-only: the server returns a validated draft, this dialog
- * reviews it, and saving goes through the normal pipeline write path.
- */
+// AI drafts are reviewed by the user and saved via the standard pipeline write path.
 export function GenerateWithAiDialog({ onClose, onCreated }: Props) {
   const [prompt, setPrompt] = useState("")
   const [draft, setDraft] = useState<GeneratedWorkflowDraft | null>(null)
@@ -175,7 +172,7 @@ export function GenerateWithAiDialog({ onClose, onCreated }: Props) {
   )
 }
 
-/** The draft has no coordinates; place nodes in layers by dependency depth. */
+// Compute grid positions for generated nodes based on topological DAG depth.
 function layoutDraft(draft: GeneratedWorkflowDraft): PipelineNode[] {
   const depth = new Map<string, number>()
   for (const node of draft.nodes) depth.set(node.nodeId, 0)

@@ -3,14 +3,10 @@ using Reflow.Modules.DataProcessing.Abstractions;
 
 namespace Reflow.Modules.NodeTypes.Abstractions;
 
-/// <summary>One upstream table: source node id plus its frame.</summary>
+// Upstream input table containing source node id and its output frame.
 public sealed record NodeInput(string NodeId, Frame Frame);
 
-/// <summary>
-/// One node type's vertical slice contract: stable id, editor definition,
-/// config validation, and unified execution. The engine resolves handlers through the
-/// registry and never switches on node types.
-/// </summary>
+// Contract for node type handlers: metadata, config validation, and execution.
 public interface INodeHandler
 {
     string Type { get; }

@@ -5,10 +5,7 @@ using Reflow.Modules.NodeTypes.Abstractions;
 
 namespace Reflow.Modules.NodeTypes.Transform;
 
-/// <summary>
-/// Reshape columns: select, drop, rename. Compiles to one DuckDB SELECT
-/// (EXCLUDE / RENAME). Names refer to input columns.
-/// </summary>
+// Projects, excludes, and renames columns via DuckDB SELECT expressions.
 public sealed class TransformHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "transform";

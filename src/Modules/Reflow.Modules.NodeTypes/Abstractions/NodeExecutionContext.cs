@@ -3,10 +3,7 @@ using Reflow.Modules.DataProcessing.Abstractions;
 
 namespace Reflow.Modules.NodeTypes.Abstractions;
 
-/// <summary>
-/// Encapsulates all runtime execution parameters provided to a node handler.
-/// Follows the Parameter Object pattern to keep INodeHandler unified and extensible.
-/// </summary>
+// Execution context provided to a node handler during task run.
 public sealed record NodeExecutionContext(
     Guid RunId,
     string NodeId,
@@ -15,9 +12,6 @@ public sealed record NodeExecutionContext(
     string? TriggerPayloadJson = null,
     CancellationToken CancellationToken = default)
 {
-    /// <summary>
-    /// Enforces that this node receives exactly one upstream input table.
-    /// </summary>
     public Frame RequireSingleInput(string nodeType)
     {
         if (Inputs.Count != 1)
@@ -25,9 +19,6 @@ public sealed record NodeExecutionContext(
         return Inputs[0].Frame;
     }
 
-    /// <summary>
-    /// Convenience factory for unit tests and local execution.
-    /// </summary>
     public static NodeExecutionContext ForTest(
         IReadOnlyList<NodeInput>? inputs = null,
         JsonElement? config = null,

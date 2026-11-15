@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 
 namespace Reflow.Modules.Triggers.Services;
 
-/// <summary>Secret URL tokens: 32 random bytes, SHA-256 hex at rest.</summary>
 public static class WebhookToken
 {
     public static string Generate() =>

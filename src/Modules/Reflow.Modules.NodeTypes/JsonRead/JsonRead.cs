@@ -5,10 +5,7 @@ using Reflow.Modules.NodeTypes.Abstractions;
 
 namespace Reflow.Modules.NodeTypes.JsonRead;
 
-/// <summary>
-/// Parses standalone JSON text, or unpacks a JSON column from one upstream
-/// frame (objects merge into the row, arrays explode into rows).
-/// </summary>
+// Parses JSON text or unpacks nested JSON columns into rows.
 public sealed class JsonReadHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "json.read";

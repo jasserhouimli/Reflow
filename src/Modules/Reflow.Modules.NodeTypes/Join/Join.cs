@@ -5,8 +5,7 @@ using Reflow.Modules.NodeTypes.Abstractions;
 
 namespace Reflow.Modules.NodeTypes.Join;
 
-/// <summary>Two-input join compiled to DuckDB SQL. Right-side duplicate
-/// columns are suffixed _right so downstream nodes see unique names.</summary>
+// Compiles two-input relational joins into DuckDB SQL.
 public sealed class JoinHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "join";

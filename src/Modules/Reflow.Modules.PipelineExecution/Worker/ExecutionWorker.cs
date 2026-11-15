@@ -12,7 +12,7 @@ using Reflow.Modules.PipelineExecution.Persistence;
 
 namespace Reflow.Modules.PipelineExecution.Worker;
 
-/// <summary>Pure dependency/readiness helpers. Unit-tested without a database.</summary>
+// Dependency resolution and task readiness evaluation for DAG execution.
 public static class ExecutionGraph
 {
     public static TimeSpan RetryDelay(int attemptNumber) =>
@@ -353,5 +353,5 @@ public class ExecutionWorker(
     private sealed record EdgeDto(string SourceNodeId, string TargetNodeId);
 }
 
-/// <summary>Terminal failure: config errors, unknown types. Never retried.</summary>
+// Terminal failure (config error, unknown node type) that terminates retry loops.
 public sealed class PermanentFailureException(string message) : InvalidOperationException(message);

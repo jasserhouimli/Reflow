@@ -8,11 +8,7 @@ using Reflow.Modules.AiAssistant.Options;
 
 namespace Reflow.Modules.AiAssistant.LanguageModels;
 
-/// <summary>
-/// Works with any OpenAI-compatible chat completions endpoint (Groq, Gemini's
-/// compatibility layer, OpenRouter, Ollama). Provider choice is configuration,
-/// not code.
-/// </summary>
+// Compatible with OpenAI-format completions endpoints (Groq, OpenRouter, local Ollama, etc.).
 public sealed class OpenAiCompatibleLanguageModel(
     HttpClient http,
     IOptions<AiOptions> options) : ILanguageModel

@@ -1,9 +1,6 @@
 namespace Reflow.Modules.DataProcessing.Abstractions;
 
-/// <summary>
-/// In-memory tabular frame. All cells are strings or null; analytical compute
-/// runs in DuckDB behind ISqlEngine; ingestion codecs produce frames.
-/// </summary>
+// In-memory tabular frame representation with column and row caps.
 public sealed class Frame
 {
     public const int MaxRows = 50_000;

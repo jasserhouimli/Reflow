@@ -2,7 +2,7 @@ using Reflow.Modules.DataProcessing.Abstractions;
 
 namespace Reflow.Modules.DataProcessing.InMemory;
 
-/// <summary>Quote-aware CSV codec with row caps. No workflow knowledge.</summary>
+// Quote-aware CSV parser with row count caps.
 public sealed class CsvCodec : IDataReader
 {
     public Frame FromCsv(string text, char delimiter = ',', bool hasHeader = true)

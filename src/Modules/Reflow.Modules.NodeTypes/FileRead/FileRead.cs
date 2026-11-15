@@ -72,10 +72,7 @@ public static class FileReadConfigParser
     }
 }
 
-/// <summary>
-/// Reads an uploaded CSV/JSON source by id. Delegates parsing to the shared
-/// data-plane reader so this node holds no parsing logic of its own.
-/// </summary>
+// Reads user-uploaded CSV/JSON sources and parses them into a Frame.
 public sealed class FileReadHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "file.read";

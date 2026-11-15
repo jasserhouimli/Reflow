@@ -5,9 +5,7 @@ using Reflow.Modules.NodeTypes.Abstractions;
 
 namespace Reflow.Modules.NodeTypes.Filter;
 
-/// <summary>
-/// Compiles the predicate to DuckDB SQL. No C# row logic: the engine filters.
-/// </summary>
+// Compiles row-level filter expressions into DuckDB SQL.
 public sealed class FilterHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "filter";

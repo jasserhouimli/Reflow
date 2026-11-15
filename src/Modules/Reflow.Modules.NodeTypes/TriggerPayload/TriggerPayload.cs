@@ -5,7 +5,7 @@ using Reflow.Modules.NodeTypes.Abstractions;
 
 namespace Reflow.Modules.NodeTypes.TriggerPayload;
 
-/// <summary>Parses the payload that started the run (webhook body / schedule tick).</summary>
+// Parses the trigger payload (webhook JSON or schedule event) into tabular form.
 public sealed class TriggerPayloadHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "trigger.payload";

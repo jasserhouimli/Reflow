@@ -10,10 +10,7 @@ namespace Reflow.Modules.AiAssistant.Features.GenerateWorkflow;
 
 public sealed record WorkflowGeneration(WorkflowDraft Draft, int RepairAttempts);
 
-/// <summary>
-/// Produces a validated draft. The model proposes; this class disposes: parse,
-/// validate, repair at most N times, then fail with the reasons.
-/// </summary>
+// Orchestrates draft generation with bounded self-correction retries on validation failure.
 public sealed class WorkflowGenerator(
     ILanguageModel model,
     PromptBuilder promptBuilder,

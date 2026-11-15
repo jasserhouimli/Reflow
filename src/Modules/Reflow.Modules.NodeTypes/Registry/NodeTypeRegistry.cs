@@ -2,7 +2,7 @@ using Reflow.Modules.NodeTypes.Abstractions;
 
 namespace Reflow.Modules.NodeTypes.Registry;
 
-/// <summary>Type → handler map. Slices register themselves; engine resolves.</summary>
+// Registry mapping node type identifiers to their execution handlers.
 public sealed class NodeTypeRegistry
 {
     private readonly Dictionary<string, INodeHandler> _handlers =

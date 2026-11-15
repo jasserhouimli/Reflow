@@ -8,10 +8,7 @@ public sealed record ArtifactInfo(
     int RowCount,
     string ChecksumSha256);
 
-/// <summary>
-/// Content-addressed run artifacts (JSON/CSV now, Parquet later).
-/// Local disk first; blob storage implements this later unchanged.
-/// </summary>
+// Storage abstraction for downloadable run artifacts (JSON/CSV).
 public interface IDataArtifactStore
 {
     Task<ArtifactInfo> SaveAsync(

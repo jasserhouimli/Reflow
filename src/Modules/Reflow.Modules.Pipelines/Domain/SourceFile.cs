@@ -1,10 +1,6 @@
 namespace Reflow.Modules.Pipelines.Domain;
 
-/// <summary>
-/// A user-uploaded CSV/JSON source. Content is stored inline because pipelines
-/// already embed small tabular text (csv.read); this keeps the data durable
-/// across container restarts without a blob dependency.
-/// </summary>
+// Uploaded source file (CSV/JSON) stored for file.read nodes.
 public class SourceFile
 {
     public Guid Id { get; set; }

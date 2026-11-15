@@ -7,7 +7,7 @@ function getCookie(name: string): string | null {
 
 const BACKEND_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || '';
 
-/** Live run feed. Server pushes `runChanged`; client refetches over REST. */
+// Real-time run updates over SignalR; triggers a REST refetch on changes.
 export function subscribeToRun(runId: string, onChanged: () => void): () => void {
   const connection = new signalR.HubConnectionBuilder()
     .withUrl(`${BACKEND_URL}/hubs/runs`, {

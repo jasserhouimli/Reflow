@@ -2,7 +2,6 @@ using Cronos;
 
 namespace Reflow.Modules.Triggers.Services;
 
-/// <summary>5-field cron + timezone. Pure; unit-tested.</summary>
 public static class CronSchedule
 {
     public static bool TryParse(string cron, out string? error)

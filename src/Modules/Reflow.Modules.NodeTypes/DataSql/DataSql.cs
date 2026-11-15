@@ -5,11 +5,7 @@ using Reflow.Modules.NodeTypes.Abstractions;
 
 namespace Reflow.Modules.NodeTypes.DataSql;
 
-/// <summary>
-/// Analytical SQL over upstream tables named after their source nodes
-/// ("Orders" → orders). With a single input the table is also available as
-/// `input`. DuckDB in-memory, no file access.
-/// </summary>
+// Executes free-form DuckDB SQL queries over upstream tables named after node IDs.
 public sealed class DataSqlHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "data.sql";
@@ -61,7 +57,7 @@ public sealed class DataSqlHandler : INodeHandler, INodeConfigSchema
         return Task.FromResult(_sql.Query(tables, context.Config.GetProperty("query").GetString()!));
     }
 
-    /// <summary>Node id → table name. Lowercased, sanitized, deduped.</summary>
+    // Sanitizes node IDs into valid SQL table names.
     public static List<(string Name, Frame Frame)> NameTables(IReadOnlyList<NodeInput> inputs)
     {
         var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

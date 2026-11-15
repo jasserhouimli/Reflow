@@ -5,10 +5,7 @@ using Reflow.Modules.Pipelines.Persistence;
 
 namespace Reflow.Modules.Pipelines.Features.Files;
 
-/// <summary>
-/// Implements the node-side port. Node handlers are singletons, so this adapter
-/// opens its own scope per read instead of capturing a scoped DbContext.
-/// </summary>
+// Loads source file content for node execution using a fresh scope per read.
 public sealed class FileSourceReader(IServiceScopeFactory scopes) : IFileSourceReader
 {
     public async Task<SourceFileContent?> FindAsync(Guid fileId, CancellationToken ct = default)

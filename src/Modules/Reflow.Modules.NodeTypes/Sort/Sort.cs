@@ -5,7 +5,7 @@ using Reflow.Modules.NodeTypes.Abstractions;
 
 namespace Reflow.Modules.NodeTypes.Sort;
 
-/// <summary>ORDER BY compiled to DuckDB SQL.</summary>
+// Compiles multi-column ordering into DuckDB ORDER BY SQL.
 public sealed class SortHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "sort";

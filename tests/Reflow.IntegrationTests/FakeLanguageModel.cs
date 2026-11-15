@@ -2,10 +2,7 @@ using Reflow.Modules.AiAssistant.Abstractions;
 
 namespace Reflow.IntegrationTests;
 
-/// <summary>
-/// Scripted provider: the API is exercised for real, only the outbound model
-/// call is replaced. Each test resets and queues its own responses.
-/// </summary>
+// Test stub for ILanguageModel that returns queued responses without network calls.
 public sealed class FakeLanguageModel : ILanguageModel
 {
     private readonly Queue<Func<string>> _responses = new();

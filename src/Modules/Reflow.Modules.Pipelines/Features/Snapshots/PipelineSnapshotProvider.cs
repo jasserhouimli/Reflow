@@ -6,10 +6,7 @@ using Reflow.Modules.Pipelines.Persistence;
 
 namespace Reflow.Modules.Pipelines.Features.Snapshots;
 
-/// <summary>
-/// Bridges Pipelines → Execution. Lives here (not in Execution) because only
-/// this module may read version tables (RULES §2).
-/// </summary>
+// Loads immutable snapshots of published pipeline versions for execution.
 public class PipelineSnapshotProvider(PipelinesDbContext db) : IPipelineSnapshotProvider
 {
     public async Task<Result<PipelineSnapshot>> GetPublishedSnapshotAsync(

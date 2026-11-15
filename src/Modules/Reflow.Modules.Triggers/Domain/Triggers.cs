@@ -39,10 +39,7 @@ public enum WebhookProcessingStatus
     Rejected = 3,
 }
 
-/// <summary>
-/// Persisted inbound event. Idempotency key is (TriggerId, ExternalEventId)
-/// when the caller supplies one (RULES §6).
-/// </summary>
+// Persisted inbound webhook event with deduplication on (TriggerId, ExternalEventId).
 public class WebhookEvent
 {
     public Guid Id { get; set; }

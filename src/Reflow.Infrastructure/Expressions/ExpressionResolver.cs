@@ -4,14 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace Reflow.Infrastructure.Expressions;
 
-/// <summary>
-/// Values available to <c>{{ ... }}</c> expressions in node configs.
-/// </summary>
-/// <param name="TriggerKind">manual, schedule or webhook.</param>
-/// <param name="TriggerName">Schedule/webhook name, if any.</param>
-/// <param name="TriggerPayloadJson">Raw JSON payload delivered by the trigger, if any.</param>
-/// <param name="RunId">Current run id.</param>
-/// <param name="VersionNumber">Published workflow version being executed.</param>
+// Context values available to expressions during execution.
 public sealed record ExpressionContext(
     string TriggerKind,
     string? TriggerName,
@@ -19,13 +12,7 @@ public sealed record ExpressionContext(
     Guid RunId,
     int VersionNumber);
 
-/// <summary>
-/// Resolves <c>{{ trigger.body.order.id }}</c> style expressions inside node
-/// config strings. Supported roots: <c>trigger</c> (kind, name, body...) and
-/// <c>run</c> (id, version). A string consisting of a single expression keeps
-/// the value's JSON type (numbers stay numbers); expressions embedded in
-/// larger text are stringified. <c>\{{</c> renders a literal <c>{{</c>.
-/// </summary>
+// Resolves {{ trigger.* }} and {{ run.* }} tokens inside node config strings.
 public static class ExpressionResolver
 {
     private static readonly Regex Token = new(
@@ -36,8 +23,7 @@ public static class ExpressionResolver
     public static bool ContainsExpressions(string? text) =>
         !string.IsNullOrEmpty(text) && Token.IsMatch(text);
 
-    /// <summary>Resolves every string value in a config JSON document.</summary>
-    /// <returns>(true, resolvedJson) or (false, error).</returns>
+    // Resolves expressions across all string values in a config JSON document.
     public static (bool Ok, string ValueOrError) ResolveConfigJson(string? configJson, ExpressionContext ctx)
     {
         if (string.IsNullOrWhiteSpace(configJson))
@@ -221,7 +207,7 @@ public static class ExpressionResolver
     private sealed class ExpressionException(string message) : Exception(message);
 }
 
-/// <summary>Design-time syntax check for expressions (no values needed).</summary>
+// Design-time syntax validator for expression syntax.
 public static class ExpressionValidator
 {
     private static readonly Regex AnyBraces = new(@"(?<!\\)\{\{", RegexOptions.Compiled);

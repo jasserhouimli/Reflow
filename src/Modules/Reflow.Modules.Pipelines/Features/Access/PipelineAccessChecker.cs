@@ -4,7 +4,7 @@ using Reflow.Infrastructure.Pipelines;
 
 namespace Reflow.Modules.Pipelines.Features.Access;
 
-/// <summary>Implements Triggers' ownership contract from pipeline tables.</summary>
+// Checks pipeline ownership for cross-module callers.
 public class PipelineAccessChecker(PipelinesDbContext db) : IPipelineAccessChecker
 {
     public async Task<bool> OwnsAsync(Guid pipelineId, Guid ownerId, CancellationToken ct) =>

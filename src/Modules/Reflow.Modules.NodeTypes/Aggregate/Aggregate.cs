@@ -5,7 +5,7 @@ using Reflow.Modules.NodeTypes.Abstractions;
 
 namespace Reflow.Modules.NodeTypes.Aggregate;
 
-/// <summary>GROUP BY summarization compiled to DuckDB SQL.</summary>
+// Compiles GROUP BY summarization queries into DuckDB SQL.
 public sealed class AggregateHandler : INodeHandler, INodeConfigSchema
 {
     public const string NodeType = "aggregate";

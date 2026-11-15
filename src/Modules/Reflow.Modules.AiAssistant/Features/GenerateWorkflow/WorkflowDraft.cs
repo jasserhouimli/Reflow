@@ -13,11 +13,7 @@ public sealed record WorkflowDraft(
     IReadOnlyList<DraftEdge> Edges,
     IReadOnlyList<string> Warnings);
 
-/// <summary>
-/// Turns model output into a draft. Deliberately tolerant about aliases and
-/// strict about structure: anything ambiguous becomes an error the repair loop
-/// can act on, never a partially-applied workflow.
-/// </summary>
+// Parses raw LLM JSON into a typed draft. Ambiguities return errors for the repair loop.
 public static class WorkflowDraftParser
 {
     public static (WorkflowDraft? Draft, string? Error) Parse(string raw)
@@ -160,7 +156,7 @@ public static class WorkflowDraftParser
     private static JsonElement EmptyObject() =>
         JsonDocument.Parse("{}").RootElement.Clone();
 
-    /// <summary>Models still wrap JSON in markdown fences despite instructions.</summary>
+    // Strip markdown code fences if returned by the model.
     private static string StripCodeFences(string raw)
     {
         var trimmed = raw.Trim();

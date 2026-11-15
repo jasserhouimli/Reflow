@@ -27,7 +27,7 @@ public class ReflowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     private static readonly SemaphoreSlim InitLock = new(1, 1);
     private static bool _initialized;
 
-    /// <summary>Outbound model call is the only thing replaced in integration tests.</summary>
+    // Test stub replacing outbound LLM requests.
     public FakeLanguageModel LanguageModel { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)

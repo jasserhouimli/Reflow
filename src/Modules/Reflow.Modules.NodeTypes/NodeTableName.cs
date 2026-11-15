@@ -1,6 +1,6 @@
 namespace Reflow.Modules.NodeTypes;
 
-/// <summary>Source node id → DuckDB table name. Lowercased, sanitized, deduped.</summary>
+// Normalizes node IDs into safe SQL table identifiers.
 public static class NodeTableName
 {
     public static string For(string nodeId, HashSet<string>? used = null)

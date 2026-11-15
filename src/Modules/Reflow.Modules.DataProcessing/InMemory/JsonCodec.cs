@@ -3,10 +3,7 @@ using Reflow.Modules.DataProcessing.Abstractions;
 
 namespace Reflow.Modules.DataProcessing.InMemory;
 
-/// <summary>
-/// Flattens JSON objects/arrays into string-cell frames. Scalars stringify;
-/// nested values serialize back to compact JSON.
-/// </summary>
+// Flattens JSON objects or arrays into string-cell Frames.
 public static class JsonCodec
 {
     public static Frame FromJson(string json, string? rootPath)

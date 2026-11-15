@@ -1,9 +1,6 @@
 namespace Reflow.Infrastructure.Files;
 
-/// <summary>
-/// Read-only view of a user's uploaded sources. Lets the assistant reference a
-/// real file id without depending on the module that owns file storage.
-/// </summary>
+// Read-only metadata view of user source files for cross-module callers.
 public sealed record SourceFileRef(Guid Id, string FileName);
 
 public interface ISourceFileCatalog

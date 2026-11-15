@@ -1,6 +1,6 @@
 namespace Reflow.Modules.DataProcessing.Abstractions;
 
-/// <summary>Serializes frames. Parquet writer arrives separately.</summary>
+// Serializes Frames into text formats (JSON, CSV).
 public interface IDataWriter
 {
     string ToJson(Frame frame);

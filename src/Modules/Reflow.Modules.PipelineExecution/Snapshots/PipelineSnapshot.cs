@@ -5,7 +5,7 @@ namespace Reflow.Modules.PipelineExecution.Snapshots;
 public sealed record SnapshotNode(string NodeId, string NodeType, string ConfigJson);
 public sealed record SnapshotEdge(string SourceNodeId, string TargetNodeId);
 
-/// <summary>Immutable published pipeline definition for one run.</summary>
+// Immutable published pipeline version captured for execution.
 public sealed record PipelineSnapshot(
     Guid PipelineId,
     Guid VersionId,
@@ -13,10 +13,7 @@ public sealed record PipelineSnapshot(
     IReadOnlyList<SnapshotNode> Nodes,
     IReadOnlyList<SnapshotEdge> Edges);
 
-/// <summary>
-/// Implemented by the Pipelines module (it owns versions). Execution only
-/// depends on this abstraction — never on Pipelines tables (RULES §2).
-/// </summary>
+// Provider contract to fetch pipeline snapshots without direct table access.
 public interface IPipelineSnapshotProvider
 {
     Task<Result<PipelineSnapshot>> GetPublishedSnapshotAsync(

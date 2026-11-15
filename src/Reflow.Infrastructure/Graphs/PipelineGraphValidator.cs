@@ -5,13 +5,7 @@ namespace Reflow.Infrastructure.Graphs;
 public sealed record GraphNode(string NodeId, string NodeType, string? ConfigJson);
 public sealed record GraphEdge(string SourceNodeId, string TargetNodeId);
 
-/// <summary>
-/// Structural DAG validation shared by the pipeline write path, publishing and
-/// the AI draft validator. Per-type config schemas belong to NodeTypes; this
-/// checks shape only (ids, edges, cycles, limits).
-/// Lives in the shared kernel so modules can validate drafts without taking a
-/// dependency on one another.
-/// </summary>
+// Structural DAG validation (cycle detection, node limits, edge validity) shared across modules.
 public static class PipelineGraphValidator
 {
     public const int MaxNodes = 100;

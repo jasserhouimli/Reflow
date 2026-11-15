@@ -1,6 +1,6 @@
 namespace Reflow.Modules.DataProcessing.Abstractions;
 
-/// <summary>Parses raw text into frames. Enforces row/size caps.</summary>
+// Parses raw tabular text (CSV, JSON) into in-memory Frames.
 public interface IDataReader
 {
     Frame FromCsv(string text, char delimiter = ',', bool hasHeader = true);

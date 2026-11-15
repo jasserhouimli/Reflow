@@ -6,11 +6,7 @@ using Reflow.Modules.PipelineExecution.Persistence;
 
 namespace Reflow.Modules.PipelineExecution.Realtime;
 
-/// <summary>
-/// Live run updates. Clients join per-run groups (ownership-checked) and
-/// receive `runChanged` pushes; they refetch state over REST. Small,
-/// version-proof payloads instead of full entity streams.
-/// </summary>
+// Streams runChanged notifications over SignalR to clients in run-scoped groups.
 [Authorize]
 public class RunHub(PipelineExecutionDbContext db) : Hub
 {
@@ -30,7 +26,7 @@ public class RunHub(PipelineExecutionDbContext db) : Hub
         Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupFor(runId));
 }
 
-/// <summary>Push helper so slices can notify without referencing SignalR types.</summary>
+// Push abstraction so execution handlers can notify without direct SignalR coupling.
 public interface IRunNotifier
 {
     Task RunChangedAsync(Guid runId, CancellationToken ct = default);

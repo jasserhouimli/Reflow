@@ -1,6 +1,6 @@
 namespace Reflow.Modules.NodeTypes.Abstractions;
 
-/// <summary>Editor-facing node metadata. Drives the palette (no hardcoded lists).</summary>
+// Metadata used to render the node in the canvas palette.
 public sealed record NodeDefinition(
     string Type,
     string DisplayName,

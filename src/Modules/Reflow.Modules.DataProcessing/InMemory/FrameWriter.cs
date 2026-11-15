@@ -3,7 +3,7 @@ using Reflow.Modules.DataProcessing.Abstractions;
 
 namespace Reflow.Modules.DataProcessing.InMemory;
 
-/// <summary>Frame serializers with size caps.</summary>
+// Frame serializer for JSON and CSV text with size validation.
 public sealed class FrameWriter : IDataWriter
 {
     public string ToJson(Frame frame)
