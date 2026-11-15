@@ -6,8 +6,12 @@ function getCookie(name: string): string | null {
   return match ? match[2] : null;
 }
 
+export function getAuthToken(): string | null {
+  return localStorage.getItem('reflow_token') || getCookie('Reflow.Token');
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = getCookie('Reflow.Token');
+  const token = getAuthToken();
   const headers: Record<string, string> = {
     ...options.headers as Record<string, string>,
   };
@@ -38,10 +42,24 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const auth = {
   register: (data: { email: string; password: string; displayName: string }) =>
     request<{ id: string }>('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
-  login: (data: { email: string; password: string }) =>
-    request<{ id: string }>('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
+  login: async (data: { email: string; password: string }) => {
+    const res = await request<{ accessToken?: string }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (res?.accessToken) {
+      localStorage.setItem('reflow_token', res.accessToken);
+    }
+    return res;
+  },
   me: () => request<{ id: string; email: string; displayName: string; createdAt: string }>('/auth/me'),
-  logout: () => request<void>('/auth/logout', { method: 'POST' }),
+  logout: async () => {
+    try {
+      await request<void>('/auth/logout', { method: 'POST' });
+    } finally {
+      localStorage.removeItem('reflow_token');
+    }
+  },
 };
 
 export interface Pipeline {

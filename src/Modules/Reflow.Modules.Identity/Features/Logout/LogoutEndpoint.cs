@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Reflow.Modules.Identity.Features.Logout;
 
@@ -20,8 +22,22 @@ public static class LogoutEndpoint
 
             var result = await handler.Handle(new LogoutRequest(refreshToken), http, ct);
 
-            http.Response.Cookies.Delete("Reflow.Token");
-            http.Response.Cookies.Delete("Reflow.RefreshToken");
+            var isDev = http.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment();
+            var sameSiteMode = isDev ? SameSiteMode.Lax : SameSiteMode.None;
+
+            http.Response.Cookies.Delete("Reflow.Token", new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = sameSiteMode
+            });
+            http.Response.Cookies.Delete("Reflow.RefreshToken", new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = sameSiteMode,
+                Path = "/api/v1/auth/refresh"
+            });
 
             return Results.Ok(new { message = "Logged out successfully" });
         })

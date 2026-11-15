@@ -140,14 +140,30 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
-var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+var rawAllowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
     ?? ["http://localhost:5173", "http://localhost:5174"];
+var configuredOrigins = rawAllowedOrigins
+    .Select(o => o.TrimEnd('/'))
+    .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins(allowedOrigins)
+        policy.SetIsOriginAllowed(origin =>
+              {
+                  if (string.IsNullOrEmpty(origin)) return false;
+                  var trimmed = origin.TrimEnd('/');
+                  if (configuredOrigins.Contains(trimmed)) return true;
+                  if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                  {
+                      return uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+                          || uri.Host.Equals("jasserlabs.dev", StringComparison.OrdinalIgnoreCase)
+                          || uri.Host.EndsWith(".jasserlabs.dev", StringComparison.OrdinalIgnoreCase)
+                          || uri.Host.EndsWith(".pages.dev", StringComparison.OrdinalIgnoreCase);
+                  }
+                  return false;
+              })
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();

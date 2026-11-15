@@ -1,9 +1,5 @@
 import * as signalR from "@microsoft/signalr"
-
-function getCookie(name: string): string | null {
-  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-  return match ? match[2] : null;
-}
+import { getAuthToken } from "./client"
 
 const BACKEND_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || '';
 
@@ -11,7 +7,7 @@ const BACKEND_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replac
 export function subscribeToRun(runId: string, onChanged: () => void): () => void {
   const connection = new signalR.HubConnectionBuilder()
     .withUrl(`${BACKEND_URL}/hubs/runs`, {
-      accessTokenFactory: () => getCookie("Reflow.Token") ?? "",
+      accessTokenFactory: () => getAuthToken() ?? "",
     })
     .withAutomaticReconnect()
     .build()
