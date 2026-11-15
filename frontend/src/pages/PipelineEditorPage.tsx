@@ -279,7 +279,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   Sinks: "bg-amber-100 text-amber-700",
 }
 
-function PipelineNodeView({ data, selected }: NodeProps) {
+function PipelineNodeView({ id, data, selected }: NodeProps) {
   const d = data as unknown as FlowNodeData & { category?: string }
   const statusRing =
     d.status === 2 ? "ring-2 ring-blue-500 animate-pulse" :
@@ -301,8 +301,13 @@ function PipelineNodeView({ data, selected }: NodeProps) {
         {d.status === 3 && <span className="text-[10px] text-emerald-600 font-bold">✓</span>}
         {d.status === 4 && <span className="text-[10px] text-rose-600 font-bold">✕</span>}
       </div>
-      <div className={`text-[10px] px-1.5 py-0.5 rounded font-mono inline-block mt-1 ${badgeStyle}`}>
-        {d.nodeType}
+      <div className="flex items-center gap-1.5 mt-1">
+        <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono inline-block ${badgeStyle}`}>
+          {d.nodeType}
+        </span>
+        <span className="text-[10px] font-mono text-muted-foreground truncate" title={`Table name: ${id}`}>
+          ({id})
+        </span>
       </div>
       {d.status !== undefined && d.status !== 0 && d.status !== 1 && (
         <div className="text-[10px] mt-1 text-muted-foreground flex items-center gap-1">
@@ -387,6 +392,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
   const [edges, setEdges] = useState<Edge[]>([])
   const [savedSnap, setSavedSnap] = useState("")
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [nodeIdInput, setNodeIdInput] = useState("")
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const [paletteQuery, setPaletteQuery] = useState("")
   const [now, setNow] = useState(() => Date.now())
@@ -593,7 +599,14 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
     // transform; DOM offsets only line up at the default viewport.
     const point = screenToFlowPosition({ x: e.clientX, y: e.clientY })
     const definition = defs.find(d => d.type === type)
-    const id = `n${Date.now().toString(36)}`
+    const baseName = (definition?.displayName || type.split('.').pop() || "node")
+      .toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/^_+|_+$/g, "") || "node"
+    let id = baseName
+    let counter = 1
+    while (nodes.some(n => n.id === id)) {
+      counter++
+      id = `${baseName}_${counter}`
+    }
     setNodes(ns => [...ns, {
       id, type: "pipelineNode",
       position: { x: point.x - 70, y: point.y - 30 },
@@ -604,9 +617,41 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
         category: definition?.category,
       },
     }])
-  }, [defs, screenToFlowPosition])
+  }, [defs, screenToFlowPosition, nodes])
 
   const selected = nodes.find(n => n.id === selectedId)
+
+  useEffect(() => {
+    if (selectedId) {
+      setNodeIdInput(selectedId)
+    }
+  }, [selectedId])
+
+  const commitNodeIdChange = () => {
+    if (!selectedId) return
+    const clean = nodeIdInput.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/^_+|_+$/g, "")
+    if (!clean) {
+      setNodeIdInput(selectedId)
+      return
+    }
+    if (clean === selectedId) return
+    if (nodes.some(n => n.id === clean)) {
+      say(`Table name '${clean}' is already in use by another node`)
+      setNodeIdInput(selectedId)
+      return
+    }
+
+    const oldId = selectedId
+    setNodes(ns => ns.map(n => n.id === oldId ? { ...n, id: clean } : n))
+    setEdges(es => es.map(e => ({
+      ...e,
+      source: e.source === oldId ? clean : e.source,
+      target: e.target === oldId ? clean : e.target,
+    })))
+    setSelectedId(clean)
+    setNodeIdInput(clean)
+    say(`Renamed table to '${clean}'`)
+  }
   const activeRun = runList.find(r => r.id === runId) ?? null
   const patchSelected = (patch: Partial<FlowNodeData>) => {
     if (!selectedId) return
@@ -740,14 +785,31 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
               <div className="flex items-start gap-2">
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">{(selected.data as unknown as FlowNodeData).label}</p>
-                  <p className="text-[10px] font-mono text-muted-foreground truncate">{selected.id}</p>
+                  <p className="text-[10px] font-mono text-muted-foreground truncate">table: {selected.id}</p>
                 </div>
                 <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700 shrink-0">
                   {(selected.data as unknown as FlowNodeData).nodeType}
                 </span>
               </div>
-              <Input placeholder="Label" value={(selected.data as unknown as FlowNodeData).label}
-                onChange={e => patchSelected({ label: e.target.value })} />
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Table Name (for SQL queries)</label>
+                <Input
+                  className="font-mono text-xs"
+                  placeholder="e.g. orders, age, users"
+                  value={nodeIdInput}
+                  onChange={e => setNodeIdInput(e.target.value)}
+                  onBlur={commitNodeIdChange}
+                  onKeyDown={e => { if (e.key === "Enter") commitNodeIdChange() }}
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Query this node in SQL as: <code className="bg-muted px-1 py-0.5 rounded font-mono font-semibold">{nodeIdInput.trim() || selected.id}</code>
+                </p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Display Label</label>
+                <Input placeholder="Label" value={(selected.data as unknown as FlowNodeData).label}
+                  onChange={e => patchSelected({ label: e.target.value })} />
+              </div>
               <NodeConfigForm
                 nodeType={(selected.data as unknown as FlowNodeData).nodeType}
                 configJson={(selected.data as unknown as FlowNodeData).configJson}
