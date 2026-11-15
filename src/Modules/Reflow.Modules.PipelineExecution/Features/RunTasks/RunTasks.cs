@@ -1,7 +1,7 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Reflow.Infrastructure.Auth;
 using Reflow.Modules.DataProcessing.Artifacts;
 using Reflow.Modules.PipelineExecution.Persistence;
 
@@ -10,7 +10,7 @@ namespace Reflow.Modules.PipelineExecution.Features.RunTasks;
 public static class RunTasksEndpoints
 {
     private static bool TryOwner(HttpContext http, out Guid ownerId) =>
-        Guid.TryParse(http.User.FindFirstValue(ClaimTypes.NameIdentifier), out ownerId);
+        http.User.TryGetUserId(out ownerId);
 
     private static async Task<bool> OwnsRun(
         PipelineExecutionDbContext db, Guid runId, Guid ownerId, CancellationToken ct) =>

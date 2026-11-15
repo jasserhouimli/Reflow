@@ -1,7 +1,8 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Reflow.Infrastructure.Auth;
+using Reflow.Infrastructure.Pipelines;
 using Reflow.Infrastructure.Results;
 using Reflow.Modules.Triggers.Domain;
 using Reflow.Modules.Triggers.Persistence;
@@ -101,7 +102,7 @@ public class ScheduleHandler(TriggersDbContext db, IPipelineAccessChecker pipeli
 public static class ScheduleEndpoints
 {
     private static bool TryOwner(HttpContext http, out Guid ownerId) =>
-        Guid.TryParse(http.User.FindFirstValue(ClaimTypes.NameIdentifier), out ownerId);
+        http.User.TryGetUserId(out ownerId);
 
     public static void Map(WebApplication app)
     {

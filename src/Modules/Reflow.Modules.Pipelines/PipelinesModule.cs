@@ -19,7 +19,7 @@ using Reflow.Modules.Pipelines.Features.Access;
 using Reflow.Modules.Pipelines.Features.Snapshots;
 using Reflow.Modules.Pipelines.Persistence;
 using Reflow.Modules.NodeTypes.FileRead;
-using Reflow.Modules.Triggers;
+using Reflow.Infrastructure.Pipelines;
 
 namespace Reflow.Modules.Pipelines;
 

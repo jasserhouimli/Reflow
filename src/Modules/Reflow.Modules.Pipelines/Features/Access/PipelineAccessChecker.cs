@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Reflow.Modules.Pipelines.Persistence;
-using Reflow.Modules.Triggers;
+using Reflow.Infrastructure.Pipelines;
 
 namespace Reflow.Modules.Pipelines.Features.Access;
 

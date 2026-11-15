@@ -1,7 +1,7 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Reflow.Infrastructure.Auth;
 using Reflow.Modules.PipelineExecution.Persistence;
 
 namespace Reflow.Modules.PipelineExecution.Realtime;
@@ -18,7 +18,7 @@ public class RunHub(PipelineExecutionDbContext db) : Hub
 
     public async Task JoinRun(Guid runId)
     {
-        if (!Guid.TryParse(Context.User?.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+        if (!Context.User.TryGetUserId(out var userId))
             throw new HubException("Unauthorized");
         var owns = await db.PipelineRuns.AnyAsync(r => r.Id == runId && r.CreatedBy == userId);
         if (!owns)

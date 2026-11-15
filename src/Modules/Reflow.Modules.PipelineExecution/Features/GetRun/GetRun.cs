@@ -1,7 +1,7 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Reflow.Infrastructure.Auth;
 using Reflow.Modules.PipelineExecution.Persistence;
 
 namespace Reflow.Modules.PipelineExecution.Features.GetRun;
@@ -16,7 +16,7 @@ public static class GetRunEndpoint
             HttpContext http,
             CancellationToken ct) =>
         {
-            if (!Guid.TryParse(http.User.FindFirstValue(ClaimTypes.NameIdentifier), out var ownerId))
+            if (!http.User.TryGetUserId(out var ownerId))
                 return Results.Json(new { error = "Unauthorized" }, statusCode: 401);
             var run = await db.PipelineRuns.AsNoTracking()
                 .FirstOrDefaultAsync(r => r.Id == id && r.CreatedBy == ownerId, ct);
