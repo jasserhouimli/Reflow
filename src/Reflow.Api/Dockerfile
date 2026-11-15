@@ -10,6 +10,7 @@ COPY src/Modules/Reflow.Modules.DataProcessing/Reflow.Modules.DataProcessing.csp
 COPY src/Modules/Reflow.Modules.NodeTypes/Reflow.Modules.NodeTypes.csproj src/Modules/Reflow.Modules.NodeTypes/
 COPY src/Modules/Reflow.Modules.PipelineExecution/Reflow.Modules.PipelineExecution.csproj src/Modules/Reflow.Modules.PipelineExecution/
 COPY src/Modules/Reflow.Modules.Triggers/Reflow.Modules.Triggers.csproj src/Modules/Reflow.Modules.Triggers/
+COPY src/Modules/Reflow.Modules.AiAssistant/Reflow.Modules.AiAssistant.csproj src/Modules/Reflow.Modules.AiAssistant/
 RUN dotnet restore src/Reflow.Api/Reflow.Api.csproj
 COPY . .
 RUN dotnet publish src/Reflow.Api/Reflow.Api.csproj -c Release -o /app/publish --no-restore

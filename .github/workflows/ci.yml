@@ -82,16 +82,6 @@ jobs:
             ghcr.io/${{ steps.repo_owner.outputs.owner }}/reflow-api:latest
             ghcr.io/${{ steps.repo_owner.outputs.owner }}/reflow-api:${{ github.sha }}
 
-      - name: Build and push Frontend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          file: frontend/Dockerfile
-          push: ${{ github.ref == 'refs/heads/master' }}
-          tags: |
-            ghcr.io/${{ steps.repo_owner.outputs.owner }}/reflow-frontend:latest
-            ghcr.io/${{ steps.repo_owner.outputs.owner }}/reflow-frontend:${{ github.sha }}
-
       - name: Log in to Azure
         if: github.ref == 'refs/heads/master'
         uses: azure/login@v2
@@ -102,6 +92,6 @@ jobs:
         if: github.ref == 'refs/heads/master'
         uses: azure/container-apps-deploy-action@v2
         with:
-          containerAppName: container-app-e6e5
-          resourceGroup: rg-e6e5
+          containerAppName: ${{ vars.AZURE_CONTAINER_APP_NAME || 'container-app-e6e5' }}
+          resourceGroup: ${{ vars.AZURE_RESOURCE_GROUP || 'rg-e6e5' }}
           imageToDeploy: ghcr.io/${{ steps.repo_owner.outputs.owner }}/reflow-api:${{ github.sha }}
