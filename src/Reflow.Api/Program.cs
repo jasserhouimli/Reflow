@@ -74,15 +74,20 @@ builder.Services.AddAuthentication(options =>
     {
         OnMessageReceived = context =>
         {
-            var token = context.Request.Cookies["Reflow.Token"];
-            if (string.IsNullOrEmpty(token)
-                && context.Request.Path.StartsWithSegments("/hubs"))
+            if (context.Request.Path.StartsWithSegments("/hubs"))
             {
-                token = context.Request.Query["access_token"];
+                var qsToken = context.Request.Query["access_token"].ToString();
+                if (!string.IsNullOrEmpty(qsToken))
+                {
+                    context.Token = qsToken;
+                    return Task.CompletedTask;
+                }
             }
-            if (!string.IsNullOrEmpty(token))
+
+            var cookieToken = context.Request.Cookies["Reflow.Token"];
+            if (!string.IsNullOrEmpty(cookieToken))
             {
-                context.Token = token;
+                context.Token = cookieToken;
             }
             return Task.CompletedTask;
         }

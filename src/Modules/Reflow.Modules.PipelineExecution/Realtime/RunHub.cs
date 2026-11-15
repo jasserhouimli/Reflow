@@ -13,7 +13,12 @@ public class RunHub(PipelineExecutionDbContext db) : Hub
 {
     public static string GroupFor(Guid runId) => $"run:{runId:N}";
 
-    public async Task JoinRun(Guid runId)
+    public Task JoinRun(string runIdStr) =>
+        Guid.TryParse(runIdStr, out var runId) ? JoinRunInternal(runId) : throw new HubException("Invalid run id");
+
+    public Task JoinRun(Guid runId) => JoinRunInternal(runId);
+
+    private async Task JoinRunInternal(Guid runId)
     {
         if (!Context.User.TryGetUserId(out var userId))
             throw new HubException("Unauthorized");
@@ -77,6 +82,9 @@ public class RunHub(PipelineExecutionDbContext db) : Hub
             logs,
         });
     }
+
+    public Task LeaveRun(string runIdStr) =>
+        Guid.TryParse(runIdStr, out var runId) ? LeaveRun(runId) : Task.CompletedTask;
 
     public Task LeaveRun(Guid runId) =>
         Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupFor(runId));

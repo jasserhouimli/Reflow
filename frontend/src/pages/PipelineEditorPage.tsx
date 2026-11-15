@@ -19,6 +19,13 @@ import { WebhookDialog } from "@/components/WebhookDialog"
 import { cronToHuman } from "@/lib/cronHelper"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  Play,
+  Terminal,
+  ChevronUp,
+  ChevronDown,
+  Table,
+} from "lucide-react"
 
 interface Props {
   pipelineId: string
@@ -284,40 +291,59 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 function PipelineNodeView({ id, data, selected }: NodeProps) {
   const d = data as unknown as FlowNodeData & { category?: string }
-  const statusRing =
-    d.status === 2 ? "ring-2 ring-blue-500 animate-pulse" :
-    d.status === 3 ? "ring-2 ring-emerald-500" :
-    d.status === 4 ? "ring-2 ring-rose-500" :
-    d.status === 6 ? "ring-2 ring-amber-500" : ""
+  const isRunning = d.status === 2
+  const isSuccess = d.status === 3
+  const isFailed = d.status === 4
+  const isQueued = d.status === 0 || d.status === 1 || d.status === 6
+
+  const statusBorder =
+    isRunning ? "border-blue-500 ring-2 ring-blue-500/50 shadow-md shadow-blue-500/20" :
+    isSuccess ? "border-emerald-500/80 ring-1 ring-emerald-500/40" :
+    isFailed ? "border-rose-500 ring-2 ring-rose-500/40" :
+    isQueued ? "border-amber-500/60" :
+    selected ? "ring-2 ring-primary border-primary" : "border-border"
 
   const badgeStyle =
     d.category && CATEGORY_COLORS[d.category]
       ? CATEGORY_COLORS[d.category]
-      : "bg-blue-100 text-blue-700"
+      : "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
 
   return (
-    <div className={`rounded-md border bg-card px-3 py-2 shadow-sm min-w-36 transition-shadow ${selected ? "ring-2 ring-primary" : statusRing}`}>
-      <Handle type="target" position={Position.Left} className="!w-2 !h-2" />
+    <div className={`rounded-lg border bg-card px-3 py-2.5 shadow-2xs min-w-44 transition-all ${statusBorder}`}>
+      <Handle type="target" position={Position.Left} className="!w-2.5 !h-2.5 !bg-muted-foreground/60" />
       <div className="flex items-center justify-between gap-2">
-        <div className="text-xs font-medium truncate">{d.label}</div>
-        {d.status === 2 && <span className="inline-block w-2 h-2 rounded-full bg-blue-500 animate-ping" />}
-        {d.status === 3 && <span className="text-[10px] text-emerald-600 font-bold">✓</span>}
-        {d.status === 4 && <span className="text-[10px] text-rose-600 font-bold">✕</span>}
+        <div className="text-xs font-semibold truncate text-foreground">{d.label}</div>
+        {isRunning && (
+          <span className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-mono font-medium animate-pulse">
+            <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-ping" />
+            running
+          </span>
+        )}
+        {isSuccess && (
+          <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 font-bold">
+            ✓ ok
+          </span>
+        )}
+        {isFailed && (
+          <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400 font-bold">
+            ✕ error
+          </span>
+        )}
+        {isQueued && (
+          <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 font-medium">
+            queued
+          </span>
+        )}
       </div>
-      <div className="flex items-center gap-1.5 mt-1">
-        <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono inline-block ${badgeStyle}`}>
+      <div className="flex items-center justify-between gap-1.5 mt-1.5">
+        <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono inline-block ${badgeStyle}`}>
           {d.nodeType}
         </span>
         <span className="text-[10px] font-mono text-muted-foreground truncate" title={`Table name: ${id}`}>
           ({id})
         </span>
       </div>
-      {d.status !== undefined && d.status !== 0 && d.status !== 1 && (
-        <div className="text-[10px] mt-1 text-muted-foreground flex items-center gap-1">
-          <span>{TASK_STATUSES[d.status]}</span>
-        </div>
-      )}
-      <Handle type="source" position={Position.Right} className="!w-2 !h-2" />
+      <Handle type="source" position={Position.Right} className="!w-2.5 !h-2.5 !bg-muted-foreground/60" />
     </div>
   )
 }
@@ -405,6 +431,9 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
 
   const [runList, setRunList] = useState<PipelineRun[]>([])
   const [runId, setRunId] = useState<string | null>(null)
+  const [activeRunState, setActiveRunState] = useState<PipelineRun | null>(null)
+  const [consoleOpen, setConsoleOpen] = useState(false)
+  const [consoleTab, setConsoleTab] = useState<"logs" | "output" | "tasks">("logs")
   const [tasks, setTasks] = useState<TaskRun[]>([])
   const [logs, setLogs] = useState<RunLog[]>([])
   const [taskDetailId, setTaskDetailId] = useState<string | null>(null)
@@ -558,13 +587,31 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
         setTasks(snapshot.tasks)
         setLogs(snapshot.logs)
         paintStatuses(snapshot.tasks)
-        setRunList(prev => prev.map(x => x.id === runId ? snapshot.run : x))
+        setActiveRunState(snapshot.run)
+        setRunList(prev => {
+          const idx = prev.findIndex(x => x.id === snapshot.run.id)
+          if (idx >= 0) {
+            const next = [...prev]
+            next[idx] = snapshot.run
+            return next
+          }
+          return [snapshot.run, ...prev]
+        })
       } else {
         Promise.all([runs.tasks(runId), runs.logs(runId), runs.get(runId)])
           .then(([t, l, r]) => {
             if (!alive) return
             setTasks(t); setLogs(l); paintStatuses(t)
-            setRunList(prev => prev.map(x => x.id === runId ? r : x))
+            setActiveRunState(r)
+            setRunList(prev => {
+              const idx = prev.findIndex(x => x.id === r.id)
+              if (idx >= 0) {
+                const next = [...prev]
+                next[idx] = r
+                return next
+              }
+              return [r, ...prev]
+            })
           })
           .catch(() => {})
       }
@@ -653,7 +700,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
     setNodeIdInput(clean)
     say(`Renamed table to '${clean}'`)
   }
-  const activeRun = runList.find(r => r.id === runId) ?? null
+  const activeRun = (runId && activeRunState?.id === runId) ? activeRunState : (runList.find(r => r.id === runId) ?? activeRunState)
   const patchSelected = (patch: Partial<FlowNodeData>) => {
     if (!selectedId) return
     setNodes(ns => ns.map(n => n.id === selectedId ? { ...n, data: { ...n.data, ...patch } } : n))
@@ -771,17 +818,30 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
           <Button size="sm" variant={dirty ? "default" : "outline"} className="h-8 text-xs font-medium" onClick={save}>
             Save
           </Button>
-          <Button size="sm" variant="outline" className="h-8 text-xs font-medium" onClick={async () => {
+          <Button size="sm" variant="outline" className="h-8 text-xs font-medium gap-1.5" onClick={async () => {
             try {
               const id = await runs.start(pipelineId)
               setRunId(id)
+              setActiveRunState({
+                id,
+                pipelineId,
+                versionNumber: detail?.currentVersion ?? 1,
+                status: 1,
+                triggerKind: "manual",
+                error: null,
+                createdAt: new Date().toISOString(),
+                startedAt: new Date().toISOString(),
+                completedAt: null,
+              })
               selectTask(null)
-              setActiveView("runs")
+              setConsoleOpen(true)
+              setConsoleTab("logs")
               say("Run started")
-              reload()
+              runs.list(pipelineId).then(setRunList).catch(() => {})
             } catch (e) { fail(e) }
           }}>
-            ▶ Run Test
+            <Play className="h-3 w-3 text-emerald-600" />
+            Run Test
           </Button>
           <Button size="sm" variant="default" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium" onClick={async () => {
             try {
@@ -858,7 +918,17 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
           <ReactFlow
             nodes={nodes} edges={edges}
             onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect}
-            onNodeClick={(_, n) => { setSelectedId(n.id); setSelectedEdgeId(null) }}
+            onNodeClick={(_, n) => {
+              setSelectedId(n.id)
+              setSelectedEdgeId(null)
+              const matchingTask = tasks.find(t => t.nodeId === n.id)
+              if (matchingTask) {
+                setTaskDetailId(matchingTask.id)
+                if (matchingTask.status === 3) {
+                  setConsoleTab("output")
+                }
+              }
+            }}
             onEdgeClick={(_, e) => { setSelectedEdgeId(e.id); setSelectedId(null) }}
             onPaneClick={() => { setSelectedId(null); setSelectedEdgeId(null) }}
             nodeTypes={nodeTypesMap} fitView>
@@ -867,21 +937,219 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
             <MiniMap pannable zoomable />
           </ReactFlow>
 
-          {/* Running Status Pill Overlay */}
-          {activeRun && activeRun.status < 2 && (
-            <div className="absolute bottom-4 right-4 z-10 flex items-center gap-2 bg-card border shadow-lg px-3 py-1.5 rounded-full text-xs">
-              <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
-              <span className="font-medium text-foreground">
-                Running ({Math.max(0, Math.round((now - parseUtcDate(activeRun.startedAt ?? activeRun.createdAt)) / 1000))}s)
-              </span>
-              <button
-                onClick={() => setActiveView("runs")}
-                className="text-primary underline font-medium hover:text-primary/80 ml-1"
-              >
-                View Console →
-              </button>
+          {/* Docked Execution Console Drawer */}
+          <div className={`absolute bottom-0 left-0 right-0 z-20 border-t bg-card/95 backdrop-blur-sm transition-all duration-200 shadow-xl flex flex-col ${
+            consoleOpen ? "h-72" : "h-9"
+          }`}>
+            {/* Console Header Bar */}
+            <div
+              className="h-9 px-3 flex items-center justify-between border-b bg-muted/40 cursor-pointer select-none text-xs"
+              onClick={() => setConsoleOpen(!consoleOpen)}
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 font-semibold text-foreground">
+                  <Terminal className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>Execution Console</span>
+                </div>
+
+                {activeRun && (
+                  <div className="flex items-center gap-2 font-mono text-[11px]">
+                    <span className={`px-2 py-0.5 rounded-full font-medium ${
+                      activeRun.status === 2 ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400 animate-pulse" :
+                      activeRun.status === 3 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400" :
+                      activeRun.status === 4 ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400" : "bg-muted text-muted-foreground"
+                    }`}>
+                      {RUN_STATUSES[activeRun.status]}
+                    </span>
+                    {activeRun.status < 2 ? (
+                      <span className="text-blue-600 font-mono font-medium">
+                        {Math.max(0, Math.round((now - parseUtcDate(activeRun.startedAt ?? activeRun.createdAt)) / 1000))}s
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">v{activeRun.versionNumber}</span>
+                    )}
+                  </div>
+                )}
+
+                {consoleOpen && (
+                  <div className="flex items-center gap-1 ml-2" onClick={e => e.stopPropagation()}>
+                    <button
+                      onClick={() => setConsoleTab("logs")}
+                      className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                        consoleTab === "logs" ? "bg-background shadow-xs text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Terminal Logs ({logs.length})
+                    </button>
+                    <button
+                      onClick={() => setConsoleTab("output")}
+                      className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                        consoleTab === "output" ? "bg-background shadow-xs text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Output Table {taskDetail ? `(${taskDetail.nodeId})` : ""}
+                    </button>
+                    <button
+                      onClick={() => setConsoleTab("tasks")}
+                      className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                        consoleTab === "tasks" ? "bg-background shadow-xs text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Nodes ({tasks.length})
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                {activeRun && activeRun.status < 2 && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 text-[10px] text-destructive hover:bg-destructive/10"
+                    onClick={() => runs.cancel(activeRun.id).catch(fail)}
+                  >
+                    Cancel Run
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                  onClick={() => setConsoleOpen(!consoleOpen)}
+                  title={consoleOpen ? "Collapse Console" : "Expand Console"}
+                >
+                  {consoleOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
-          )}
+
+            {/* Console Content when Expanded */}
+            {consoleOpen && (
+              <div className="flex-1 min-h-0 overflow-auto bg-card">
+                {consoleTab === "logs" && (
+                  <div className="h-full bg-zinc-950 p-3 font-mono text-xs text-zinc-200 overflow-auto space-y-1">
+                    {logs.map((l, i) => {
+                      const levelColor =
+                        l.level === "Error" ? "text-rose-400 font-bold" :
+                        l.level === "Warning" ? "text-amber-400 font-bold" : "text-emerald-400"
+                      return (
+                        <div key={i} className="flex items-start gap-2 leading-relaxed">
+                          <span className="text-zinc-500 shrink-0">
+                            {l.timestamp ? new Date(parseUtcDate(l.timestamp)).toLocaleTimeString() : "--:--:--"}
+                          </span>
+                          <span className={`shrink-0 ${levelColor}`}>[{l.level.toUpperCase()}]</span>
+                          <span className="break-all">{l.message}</span>
+                        </div>
+                      )
+                    })}
+                    {logs.length === 0 && (
+                      <p className="text-zinc-500 italic py-4 text-center">
+                        {activeRun ? "Streaming execution logs over WebSockets..." : "No logs available. Click 'Run Test' above to execute."}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {consoleTab === "output" && (
+                  <div className="h-full p-3 overflow-auto">
+                    {taskDetail && outputPreview ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-foreground">
+                            Previewing node: <code className="font-mono text-primary">{taskDetail.nodeId}</code>
+                          </span>
+                          <span className="text-muted-foreground font-mono text-[11px]">
+                            Showing {outputPreview.rows.length} of {outputPreview.total} rows
+                          </span>
+                        </div>
+                        <div className="border rounded overflow-auto max-h-52">
+                          <table className="text-xs font-mono w-full border-collapse">
+                            <thead className="bg-muted/60 sticky top-0">
+                              <tr>
+                                {outputPreview.cols.map(c => (
+                                  <th key={c} className="text-left px-2.5 py-1.5 border-b font-semibold text-foreground">
+                                    {c}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {outputPreview.rows.map((r, i) => (
+                                <tr key={i} className="odd:bg-muted/15 hover:bg-muted/30 transition-colors">
+                                  {outputPreview.cols.map(c => (
+                                    <td key={c} className="px-2.5 py-1 border-b text-muted-foreground truncate max-w-xs">
+                                      {r[c] ?? "∅"}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-xs text-muted-foreground py-8">
+                        <Table className="h-8 w-8 text-muted-foreground/40 mb-2" />
+                        <p className="font-medium">No node output selected</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Click any node on the canvas to inspect its output table rows.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {consoleTab === "tasks" && (
+                  <div className="p-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 overflow-auto max-h-60">
+                    {tasks.map(t => {
+                      const isSelected = t.id === taskDetailId
+                      return (
+                        <div
+                          key={t.id}
+                          onClick={() => {
+                            setTaskDetailId(t.id)
+                            setConsoleTab("output")
+                          }}
+                          className={`p-2.5 rounded-lg border cursor-pointer transition-all space-y-1 ${
+                            isSelected ? "border-primary bg-accent/60" : "bg-card hover:border-border"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono font-medium text-xs text-foreground truncate">{t.nodeId}</span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                              t.status === 3 ? "bg-emerald-100 text-emerald-700" :
+                              t.status === 4 ? "bg-rose-100 text-rose-700" :
+                              t.status === 2 ? "bg-blue-100 text-blue-700 animate-pulse" : "bg-muted text-muted-foreground"
+                            }`}>
+                              {TASK_STATUSES[t.status]}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono">
+                            <span>{t.nodeType}</span>
+                            {t.nodeType === "data.output" && t.status === 3 && runId && (
+                              <a
+                                onClick={e => e.stopPropagation()}
+                                href={artifactUrl(runId, t.nodeId)}
+                                download
+                                className="text-emerald-600 hover:underline"
+                              >
+                                download
+                              </a>
+                            )}
+                          </div>
+                          {t.error && <p className="text-[10px] text-destructive truncate">{t.error}</p>}
+                        </div>
+                      )
+                    })}
+                    {tasks.length === 0 && (
+                      <p className="text-xs text-muted-foreground col-span-full py-6 text-center">
+                        No tasks executed yet.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right: Selected Node Configuration Inspector */}
