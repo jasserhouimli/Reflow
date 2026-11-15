@@ -14,6 +14,9 @@ import {
   type TaskDetail, type TaskAttempt, type VersionDetail, type SourceFile,
 } from "@/api/client"
 import { subscribeToRun } from "@/api/realtime"
+import { ScheduleDialog } from "@/components/ScheduleDialog"
+import { WebhookDialog } from "@/components/WebhookDialog"
+import { cronToHuman } from "@/lib/cronHelper"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -419,11 +422,8 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
   const [versionDetail, setVersionDetail] = useState<VersionDetail | null>(null)
 
   const [triggerList, setTriggerList] = useState<TriggerItem[]>([])
-  const [schedName, setSchedName] = useState("")
-  const [schedCron, setSchedCron] = useState("0 2 * * *")
-  const [schedTz, setSchedTz] = useState("UTC")
-  const [hookName, setHookName] = useState("")
-  const [hookToken, setHookToken] = useState("")
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
+  const [webhookDialogOpen, setWebhookDialogOpen] = useState(false)
 
   const say = (m: string) => { setMsg(m); setErr("") }
   const fail = (e: unknown) => { setErr(e instanceof Error ? e.message : "Failed"); setMsg("") }
@@ -902,65 +902,115 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
           </div>
 
           <div className="p-3 border-t">
-            <p className="text-sm font-medium mb-2">Triggers</p>
-            <div className="space-y-1">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium">Triggers & Schedules</p>
+              <div className="flex items-center gap-1">
+                <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => setScheduleDialogOpen(true)}>
+                  + Schedule
+                </Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => setWebhookDialogOpen(true)}>
+                  + Webhook
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
               {triggerList.map(t => (
-                <div key={t.id} className="space-y-0.5">
-                  <div className="flex items-center gap-1 text-xs">
-                    <button className="underline" onClick={async () => {
-                      if (t.kind !== 0) return
-                      try {
-                        await triggers.updateSchedule(pipelineId, t.id, { isEnabled: !t.isEnabled })
-                        reload()
-                      } catch (e) { fail(e) }
-                    }} title="toggle enabled">{t.isEnabled ? "●" : "○"}</button>
-                    <span>{t.name} ({t.kind === 0 ? `cron ${t.cron} ${t.timezone} · ${t.overlap === 0 ? "skip" : "queue"}` : "webhook"})</span>
-                    <button className="text-destructive ml-auto" onClick={() => triggers.remove(pipelineId, t.id).then(reload).catch(fail)}>x</button>
+                <div key={t.id} className="p-2 rounded border bg-card/60 space-y-1 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {t.kind === 0 ? (
+                        <button
+                          onClick={async () => {
+                            try {
+                              await triggers.updateSchedule(pipelineId, t.id, { isEnabled: !t.isEnabled })
+                              reload()
+                            } catch (e) { fail(e) }
+                          }}
+                          className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center transition-colors ${
+                            t.isEnabled ? "bg-emerald-600 border-emerald-600 text-white" : "border-muted-foreground/40 bg-transparent"
+                          }`}
+                          title={t.isEnabled ? "Schedule active (click to pause)" : "Schedule paused (click to enable)"}
+                        >
+                          {t.isEnabled && <span className="text-[8px] font-bold">✓</span>}
+                        </button>
+                      ) : (
+                        <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" title="Webhook Trigger" />
+                      )}
+                      <span className="font-medium truncate text-foreground">{t.name}</span>
+                      <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-muted text-muted-foreground">
+                        {t.kind === 0 ? "schedule" : "webhook"}
+                      </span>
+                    </div>
+
+                    <button
+                      className="text-muted-foreground hover:text-destructive text-xs px-1"
+                      onClick={() => triggers.remove(pipelineId, t.id).then(reload).catch(fail)}
+                      title="Delete trigger"
+                    >
+                      ✕
+                    </button>
                   </div>
+
+                  {t.kind === 0 && t.cron && (
+                    <div className="text-[11px] text-muted-foreground pl-5 flex items-center justify-between">
+                      <span>{cronToHuman(t.cron, t.timezone)}</span>
+                      <span className="text-[10px] font-mono opacity-60">{t.overlap === 0 ? "skip" : "queue"}</span>
+                    </div>
+                  )}
+
                   {t.kind === 1 && (
-                    <button className="text-[11px] underline font-mono ml-5" onClick={async () => {
-                      try {
-                        const r = await triggers.regenerateWebhook(pipelineId, t.id)
-                        setHookToken(r.token); say("Token regenerated — copy it now")
-                      } catch (e) { fail(e) }
-                    }}>regenerate token</button>
+                    <div className="pl-3.5 pt-1 space-y-1">
+                      <div className="flex items-center gap-1 text-[11px]">
+                        <span className="font-mono text-[10px] text-muted-foreground truncate bg-muted/40 px-1 py-0.5 rounded flex-1">
+                          /api/v1/hooks/••••••••
+                        </span>
+                        <button
+                          className="text-primary hover:underline text-[11px]"
+                          onClick={async () => {
+                            try {
+                              const r = await triggers.regenerateWebhook(pipelineId, t.id)
+                              navigator.clipboard.writeText(`${window.location.origin}/api/v1/hooks/${r.token}`)
+                              say("New Webhook URL copied to clipboard!")
+                            } catch (e) { fail(e) }
+                          }}
+                        >
+                          Copy URL
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
               ))}
-            </div>
-            <div className="flex gap-1 mt-2">
-              <Input className="h-8 text-xs" placeholder="Name" value={schedName} onChange={e => setSchedName(e.target.value)} />
-              <Input className="h-8 text-xs font-mono" placeholder="cron" value={schedCron} onChange={e => setSchedCron(e.target.value)} />
-            </div>
-            <div className="flex gap-1 mt-1">
-              <Input className="h-8 text-xs" placeholder="Timezone" value={schedTz} onChange={e => setSchedTz(e.target.value)} />
-              <Button size="sm" variant="outline" onClick={async () => {
-                try {
-                  await triggers.createSchedule(pipelineId, { name: schedName || "Schedule", cron: schedCron, timezone: schedTz, overlap: 0 })
-                  setSchedName(""); say("Schedule created"); reload()
-                } catch (e) { fail(e) }
-              }}>+cron</Button>
-            </div>
-            <div className="flex gap-1 mt-1">
-              <Input className="h-8 text-xs" placeholder="Webhook name" value={hookName} onChange={e => setHookName(e.target.value)} />
-              <Button size="sm" variant="outline" onClick={async () => {
-                try {
-                  const r = await triggers.createWebhook(pipelineId, { name: hookName || "Webhook" })
-                  setHookToken(r.token); setHookName(""); say("Webhook created — copy the token now"); reload()
-                } catch (e) { fail(e) }
-              }}>+hook</Button>
-            </div>
-            {hookToken && (
-              <div className="mt-1 flex items-center gap-1">
-                <p className="text-[10px] font-mono break-all bg-muted/50 rounded p-1 flex-1">
-                  {window.location.origin}/api/v1/hooks/{hookToken}
+              {triggerList.length === 0 && (
+                <p className="text-xs text-muted-foreground py-2 text-center border border-dashed rounded">
+                  No automated schedules or webhooks yet.
                 </p>
-                <Button size="sm" variant="ghost" onClick={() => navigator.clipboard.writeText(`${window.location.origin}/api/v1/hooks/${hookToken}`).then(() => say("Copied"))}>Copy</Button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
+
+      <ScheduleDialog
+        isOpen={scheduleDialogOpen}
+        onClose={() => setScheduleDialogOpen(false)}
+        onSave={async (sched) => {
+          await triggers.createSchedule(pipelineId, sched)
+          say("Schedule created successfully")
+          reload()
+        }}
+      />
+
+      <WebhookDialog
+        isOpen={webhookDialogOpen}
+        onClose={() => setWebhookDialogOpen(false)}
+        onCreate={async (wName) => {
+          const res = await triggers.createWebhook(pipelineId, { name: wName })
+          reload()
+          return res
+        }}
+      />
     </div>
   )
 }
