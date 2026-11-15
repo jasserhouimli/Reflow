@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Reflow.Modules.AiAssistant.Contracts;
+namespace Reflow.Modules.AiAssistant.Features.GenerateWorkflow;
 
 public sealed record DraftNode(string NodeId, string NodeType, string? Label, JsonElement Config);
 

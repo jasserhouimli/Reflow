@@ -4,10 +4,9 @@ using Microsoft.Extensions.Options;
 using Reflow.Infrastructure.Files;
 using Reflow.Infrastructure.Results;
 using Reflow.Modules.AiAssistant.Abstractions;
-using Reflow.Modules.AiAssistant.Contracts;
 using Reflow.Modules.AiAssistant.Options;
 
-namespace Reflow.Modules.AiAssistant.GenerateWorkflow;
+namespace Reflow.Modules.AiAssistant.Features.GenerateWorkflow;
 
 public sealed record WorkflowGeneration(WorkflowDraft Draft, int RepairAttempts);
 

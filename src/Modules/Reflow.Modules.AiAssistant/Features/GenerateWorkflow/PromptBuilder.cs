@@ -5,7 +5,7 @@ using Reflow.Modules.AiAssistant.Options;
 using Reflow.Modules.NodeTypes.Abstractions;
 using Reflow.Modules.NodeTypes.Registry;
 
-namespace Reflow.Modules.AiAssistant.GenerateWorkflow;
+namespace Reflow.Modules.AiAssistant.Features.GenerateWorkflow;
 
 /// <summary>
 /// Builds prompts from the live node catalog. The catalog is generated from the

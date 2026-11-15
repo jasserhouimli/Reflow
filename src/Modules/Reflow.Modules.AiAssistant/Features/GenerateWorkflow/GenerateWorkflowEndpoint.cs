@@ -1,14 +1,14 @@
-using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
+using Reflow.Infrastructure.Auth;
 using Reflow.Infrastructure.Files;
 using Reflow.Infrastructure.Results;
 using Reflow.Modules.AiAssistant.Options;
 
-namespace Reflow.Modules.AiAssistant.GenerateWorkflow;
+namespace Reflow.Modules.AiAssistant.Features.GenerateWorkflow;
 
 public sealed record GenerateWorkflowRequest(string Prompt);
 
@@ -64,12 +64,6 @@ public sealed class GenerateWorkflowHandler(
     }
 }
 
-internal static class AssistantAuth
-{
-    public static bool TryOwnerId(ClaimsPrincipal user, out Guid ownerId) =>
-        Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out ownerId);
-}
-
 public static class GenerateWorkflowEndpoint
 {
     public static void Map(WebApplication app)
@@ -80,7 +74,7 @@ public static class GenerateWorkflowEndpoint
             HttpContext http,
             CancellationToken ct) =>
         {
-            if (!AssistantAuth.TryOwnerId(http.User, out var ownerId))
+            if (!http.User.TryGetUserId(out var ownerId))
                 return Results.Json(new { error = "Unauthorized" }, statusCode: 401);
 
             var result = await handler.Handle(request, ownerId, ct);

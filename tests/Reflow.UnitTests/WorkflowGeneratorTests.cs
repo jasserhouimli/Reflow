@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Reflow.Infrastructure.Files;
 using Reflow.Modules.AiAssistant.Abstractions;
-using Reflow.Modules.AiAssistant.GenerateWorkflow;
+using Reflow.Modules.AiAssistant.Features.GenerateWorkflow;
 using Reflow.Modules.AiAssistant.Options;
 using Reflow.Modules.NodeTypes.Abstractions;
 using Reflow.Modules.NodeTypes.CsvRead;

@@ -1,6 +1,5 @@
 using System.Text.Json;
-using Reflow.Modules.AiAssistant.Contracts;
-using Reflow.Modules.AiAssistant.GenerateWorkflow;
+using Reflow.Modules.AiAssistant.Features.GenerateWorkflow;
 using Reflow.Modules.NodeTypes.Abstractions;
 using Reflow.Modules.NodeTypes.CsvRead;
 using Reflow.Modules.NodeTypes.DataOutput;

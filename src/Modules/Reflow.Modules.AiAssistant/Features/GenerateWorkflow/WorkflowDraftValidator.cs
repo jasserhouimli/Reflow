@@ -1,9 +1,8 @@
 using System.Text.RegularExpressions;
 using Reflow.Infrastructure.Graphs;
-using Reflow.Modules.AiAssistant.Contracts;
 using Reflow.Modules.NodeTypes.Registry;
 
-namespace Reflow.Modules.AiAssistant.GenerateWorkflow;
+namespace Reflow.Modules.AiAssistant.Features.GenerateWorkflow;
 
 /// <summary>
 /// The trust boundary. Model output is untrusted input: every type must exist in

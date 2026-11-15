@@ -3,7 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Reflow.Modules.AiAssistant.Abstractions;
-using Reflow.Modules.AiAssistant.GenerateWorkflow;
+using Reflow.Modules.AiAssistant.Features.GenerateWorkflow;
 using Reflow.Modules.AiAssistant.LanguageModels;
 using Reflow.Modules.AiAssistant.Options;
 

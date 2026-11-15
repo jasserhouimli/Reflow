@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Reflow.Modules.AiAssistant.Contracts;
+using Reflow.Modules.AiAssistant.Features.GenerateWorkflow;
 using Xunit;
 
 namespace Reflow.UnitTests;
