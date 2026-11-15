@@ -25,8 +25,6 @@ dotnet ef database update --context TriggersDbContext          --project src/Ref
 dotnet run --project src/Reflow.Api --urls http://localhost:5001
 ```
 
-`.\dev.ps1` starts the backend and frontend together.
-
 ### 3. Start the editor
 
 ```bash
