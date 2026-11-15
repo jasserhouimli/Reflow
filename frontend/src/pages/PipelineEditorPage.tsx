@@ -334,6 +334,12 @@ const toFlow = (d: PipelineDetail, defs?: NodeDefinition[]): Node[] =>
 // effectively disappears at 0.5 zoom.
 const EDGE_COLOR = "#64748b"
 
+function parseUtcDate(dateStr: string | null | undefined): number {
+  if (!dateStr) return Date.now()
+  const normalized = dateStr.endsWith("Z") || dateStr.includes("+") ? dateStr : `${dateStr}Z`
+  return new Date(normalized).getTime()
+}
+
 const edgeVisuals = () => ({
   type: "smoothstep" as const,
   style: { stroke: EDGE_COLOR, strokeWidth: 2 },
@@ -554,7 +560,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
     }
     refresh()
     const stopSignalR = subscribeToRun(runId, () => { if (!finished) refresh() })
-    const fallback = setInterval(() => { if (!finished) refresh() }, 15000)
+    const fallback = setInterval(() => { if (!finished) refresh() }, 1000)
     return () => { alive = false; finished = true; stopSignalR(); clearInterval(fallback) }
   }, [runId])
 
@@ -759,7 +765,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
             <p className="text-sm font-medium mb-2">Runs</p>
             {activeRun && activeRun.status < 2 && (
               <p className="text-xs text-blue-700 mb-1">
-                ● Running {Math.max(0, Math.round((now - new Date(activeRun.startedAt ?? activeRun.createdAt).getTime()) / 1000))}s
+                ● Running {Math.max(0, Math.round((now - parseUtcDate(activeRun.startedAt ?? activeRun.createdAt)) / 1000))}s
               </p>
             )}
             <div className="space-y-1">
@@ -820,7 +826,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
               {versionList.map(v => (
                 <button key={v.versionNumber} className="block text-xs underline font-mono"
                   onClick={() => versions.detail(pipelineId, v.versionNumber).then(setVersionDetail).catch(fail)}>
-                  v{v.versionNumber} · {new Date(v.publishedAt).toLocaleString()}
+                  v{v.versionNumber} · {new Date(parseUtcDate(v.publishedAt)).toLocaleString()}
                 </button>
               ))}
             </div>
