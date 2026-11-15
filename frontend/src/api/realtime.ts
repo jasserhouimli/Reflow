@@ -1,10 +1,10 @@
 import * as signalR from "@microsoft/signalr"
-import { getAuthToken } from "./client"
+import { getAuthToken, type RunSnapshot } from "./client"
 
 const BACKEND_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || ''
 
 let activeConnection: signalR.HubConnection | null = null
-const activeSubscribers = new Map<string, Set<() => void>>()
+const activeSubscribers = new Map<string, Set<(snapshot?: RunSnapshot) => void>>()
 
 function getHubConnection(): signalR.HubConnection {
   if (!activeConnection) {
@@ -17,6 +17,13 @@ function getHubConnection(): signalR.HubConnection {
       .configureLogging(signalR.LogLevel.None)
       .build()
 
+    activeConnection.on("runSnapshot", (snapshot: RunSnapshot) => {
+      const callbacks = activeSubscribers.get(snapshot.runId)
+      if (callbacks) {
+        callbacks.forEach(cb => cb(snapshot))
+      }
+    })
+
     activeConnection.on("runChanged", (changedRunId: string) => {
       const callbacks = activeSubscribers.get(changedRunId)
       if (callbacks) {
@@ -28,8 +35,6 @@ function getHubConnection(): signalR.HubConnection {
       for (const runId of activeSubscribers.keys()) {
         try {
           await activeConnection?.invoke("JoinRun", runId)
-          const callbacks = activeSubscribers.get(runId)
-          callbacks?.forEach(cb => cb())
         } catch {}
       }
     })
@@ -38,14 +43,17 @@ function getHubConnection(): signalR.HubConnection {
   return activeConnection
 }
 
-// Real-time run updates over persistent SignalR WebSockets; no polling.
-export function subscribeToRun(runId: string, onChanged: () => void): () => void {
+// Real-time run updates streamed over persistent SignalR WebSockets; zero polling.
+export function subscribeToRun(
+  runId: string,
+  onSnapshot: (snapshot?: RunSnapshot) => void
+): () => void {
   const conn = getHubConnection()
 
   if (!activeSubscribers.has(runId)) {
     activeSubscribers.set(runId, new Set())
   }
-  activeSubscribers.get(runId)!.add(onChanged)
+  activeSubscribers.get(runId)!.add(onSnapshot)
 
   const join = async () => {
     try {
@@ -54,7 +62,6 @@ export function subscribeToRun(runId: string, onChanged: () => void): () => void
       }
       if (conn.state === signalR.HubConnectionState.Connected) {
         await conn.invoke("JoinRun", runId)
-        onChanged()
       }
     } catch (err) {
       console.warn("SignalR JoinRun error:", err)
@@ -62,7 +69,7 @@ export function subscribeToRun(runId: string, onChanged: () => void): () => void
   }
 
   if (conn.state === signalR.HubConnectionState.Connected) {
-    conn.invoke("JoinRun", runId).then(() => onChanged()).catch(() => {})
+    conn.invoke("JoinRun", runId).catch(() => {})
   } else if (conn.state === signalR.HubConnectionState.Disconnected) {
     join()
   }
@@ -70,7 +77,7 @@ export function subscribeToRun(runId: string, onChanged: () => void): () => void
   return () => {
     const set = activeSubscribers.get(runId)
     if (set) {
-      set.delete(onChanged)
+      set.delete(onSnapshot)
       if (set.size === 0) {
         activeSubscribers.delete(runId)
         if (conn.state === signalR.HubConnectionState.Connected) {

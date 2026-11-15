@@ -10,7 +10,7 @@ import {
   pipelines, runs, triggers, nodeTypes, versions, artifactUrl, files,
   RUN_STATUSES, TASK_STATUSES, PIPELINE_STATUSES,
   type PipelineDetail, type PipelineEdge,
-  type NodeDefinition, type PipelineRun, type TaskRun, type RunLog, type TriggerItem,
+  type NodeDefinition, type PipelineRun, type TaskRun, type RunLog, type RunSnapshot, type TriggerItem,
   type TaskDetail, type TaskAttempt, type VersionDetail, type SourceFile,
 } from "@/api/client"
 import { subscribeToRun } from "@/api/realtime"
@@ -545,22 +545,25 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
   useEffect(() => {
     if (!runId) return
     let alive = true
-    let finished = false
-    const refresh = async () => {
-      try {
-        const [t, l] = await Promise.all([runs.tasks(runId), runs.logs(runId)])
-        if (!alive) return
-        setTasks(t); setLogs(l)
-        paintStatuses(t)
-        const r = await runs.get(runId)
-        if (!alive) return
-        setRunList(prev => prev.map(x => x.id === runId ? r : x))
-        if (r.status >= 2) finished = true
-      } catch { /* ignore */ }
+    const handleSnapshot = (snapshot?: RunSnapshot) => {
+      if (!alive) return
+      if (snapshot) {
+        setTasks(snapshot.tasks)
+        setLogs(snapshot.logs)
+        paintStatuses(snapshot.tasks)
+        setRunList(prev => prev.map(x => x.id === runId ? snapshot.run : x))
+      } else {
+        Promise.all([runs.tasks(runId), runs.logs(runId), runs.get(runId)])
+          .then(([t, l, r]) => {
+            if (!alive) return
+            setTasks(t); setLogs(l); paintStatuses(t)
+            setRunList(prev => prev.map(x => x.id === runId ? r : x))
+          })
+          .catch(() => {})
+      }
     }
-    refresh()
-    const stopSignalR = subscribeToRun(runId, () => { if (!finished) refresh() })
-    return () => { alive = false; finished = true; stopSignalR() }
+    const stopSignalR = subscribeToRun(runId, handleSnapshot)
+    return () => { alive = false; stopSignalR() }
   }, [runId])
 
   useEffect(() => {

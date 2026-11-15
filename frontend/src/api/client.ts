@@ -223,6 +223,13 @@ export interface RunLog {
   timestamp: string;
 }
 
+export interface RunSnapshot {
+  runId: string;
+  run: PipelineRun;
+  tasks: TaskRun[];
+  logs: RunLog[];
+}
+
 export const runs = {
   start: async (pipelineId: string) => {
     const res = await request<{ id: string }>(`/pipelines/${pipelineId}/runs`, { method: 'POST' });
