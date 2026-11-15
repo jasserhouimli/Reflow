@@ -556,12 +556,11 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
         if (!alive) return
         setRunList(prev => prev.map(x => x.id === runId ? r : x))
         if (r.status >= 2) finished = true
-      } catch { /* keep polling */ }
+      } catch { /* ignore */ }
     }
     refresh()
     const stopSignalR = subscribeToRun(runId, () => { if (!finished) refresh() })
-    const fallback = setInterval(() => { if (!finished) refresh() }, 1000)
-    return () => { alive = false; finished = true; stopSignalR(); clearInterval(fallback) }
+    return () => { alive = false; finished = true; stopSignalR() }
   }, [runId])
 
   useEffect(() => {
