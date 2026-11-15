@@ -397,6 +397,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [nodeIdInput, setNodeIdInput] = useState("")
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
+  const [activeView, setActiveView] = useState<"canvas" | "runs" | "triggers" | "versions">("canvas")
   const [paletteQuery, setPaletteQuery] = useState("")
   const [now, setNow] = useState(() => Date.now())
   const [msg, setMsg] = useState("")
@@ -693,79 +694,167 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
   if (!detail) return <div className="p-8">Loading... {err && <p className="text-destructive">{err}</p>}</div>
 
   return (
-    <div className="h-screen flex flex-col">
-      <div className="flex items-center justify-between px-4 py-2 border-b">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={onBack}>←</Button>
-          <Input value={name} onChange={e => setName(e.target.value)} className="w-56 h-8" />
-          <span className="text-xs text-muted-foreground">
-            {PIPELINE_STATUSES[detail.status]} · v{detail.currentVersion}{dirty ? " · unsaved ●" : ""}
-          </span>
+    <div className="h-screen flex flex-col bg-background text-foreground">
+      {/* Top Header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b bg-card shrink-0">
+        {/* Left: Back + Name + Status */}
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-foreground" onClick={onBack} title="Back to Pipelines">
+            ←
+          </Button>
+          <div className="flex items-center gap-2">
+            <Input
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className="w-48 h-8 text-sm font-semibold border-transparent hover:border-border focus:border-border transition-colors px-2"
+              placeholder="Pipeline Name"
+            />
+            <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
+              detail.status === 1 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400" : "bg-muted text-muted-foreground"
+            }`}>
+              {PIPELINE_STATUSES[detail.status]} · v{detail.currentVersion}
+            </span>
+            {dirty && (
+              <span className="text-[11px] text-amber-600 font-medium flex items-center gap-1">
+                ● unsaved
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button size="sm" onClick={save}>Save</Button>
-          <Button size="sm" variant="outline" onClick={async () => {
+
+        {/* Center: View Switcher Segmented Control */}
+        <div className="flex items-center p-0.5 rounded-lg bg-muted/60 border text-xs">
+          <button
+            onClick={() => setActiveView("canvas")}
+            className={`px-3 py-1 rounded-md font-medium transition-all ${
+              activeView === "canvas" ? "bg-background shadow-xs text-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Canvas
+          </button>
+          <button
+            onClick={() => setActiveView("runs")}
+            className={`px-3 py-1 rounded-md font-medium transition-all flex items-center gap-1.5 ${
+              activeView === "runs" ? "bg-background shadow-xs text-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Runs & Logs
+            {activeRun && activeRun.status < 2 && (
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveView("triggers")}
+            className={`px-3 py-1 rounded-md font-medium transition-all flex items-center gap-1.5 ${
+              activeView === "triggers" ? "bg-background shadow-xs text-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Triggers & Schedules
+            {triggerList.length > 0 && (
+              <span className="text-[10px] px-1 py-0.2 rounded bg-muted-foreground/15 font-mono">{triggerList.length}</span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveView("versions")}
+            className={`px-3 py-1 rounded-md font-medium transition-all ${
+              activeView === "versions" ? "bg-background shadow-xs text-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Versions
+          </button>
+        </div>
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2">
+          {msg && <span className="text-xs text-emerald-600 font-medium px-2">{msg}</span>}
+          {err && <span className="text-xs text-destructive font-medium px-2">{err}</span>}
+          <Button size="sm" variant={dirty ? "default" : "outline"} className="h-8 text-xs font-medium" onClick={save}>
+            Save
+          </Button>
+          <Button size="sm" variant="outline" className="h-8 text-xs font-medium" onClick={async () => {
             try {
-              const r = await pipelines.validate(pipelineId)
-              if (r.valid) {
-                say("Valid")
-              } else {
-                fail(r.errors.join("; "))
-              }
+              const id = await runs.start(pipelineId)
+              setRunId(id)
+              selectTask(null)
+              setActiveView("runs")
+              say("Run started")
+              reload()
             } catch (e) { fail(e) }
-          }}>Validate</Button>
-          <Button size="sm" variant="outline" onClick={async () => {
+          }}>
+            ▶ Run Test
+          </Button>
+          <Button size="sm" variant="default" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium" onClick={async () => {
             try {
               const r = await pipelines.publish(pipelineId)
               say(`Published v${r.version}`); reload()
             } catch (e) { fail(e) }
-          }}>Publish</Button>
-          <Button size="sm" variant="outline" onClick={async () => {
-            try { const id = await runs.start(pipelineId); setRunId(id); selectTask(null); say("Run started"); reload() }
-            catch (e) { fail(e) }
-          }}>Run</Button>
-          <Button size="sm" variant="ghost" onClick={async () => {
-            try { await pipelines.archive(pipelineId); say("Archived"); reload() } catch (e) { fail(e) }
-          }}>Archive</Button>
-          <Button size="sm" variant="ghost" className="text-destructive" onClick={removePipeline}>Delete</Button>
-          <Button size="sm" variant="ghost" onClick={onLogout}>Logout</Button>
+          }}>
+            Publish
+          </Button>
+          <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground" onClick={async () => {
+            try {
+              const r = await pipelines.validate(pipelineId)
+              if (r.valid) say("Pipeline is valid")
+              else fail(r.errors.join("; "))
+            } catch (e) { fail(e) }
+          }}>
+            Validate
+          </Button>
+          <Button size="sm" variant="ghost" className="h-8 text-xs text-destructive hover:bg-destructive/10" onClick={removePipeline}>
+            Delete
+          </Button>
+          <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground" onClick={onLogout}>
+            Logout
+          </Button>
         </div>
       </div>
-      {msg && <p className="text-sm text-green-700 px-4 pt-1">{msg}</p>}
-      {err && <p className="text-sm text-destructive px-4 pt-1">{err}</p>}
 
-      <div className="flex flex-1 min-h-0">
-        <div className="w-52 border-r p-3 space-y-2 overflow-auto">
-          <p className="text-xs font-medium text-muted-foreground">PALETTE — drag onto canvas</p>
-          <Input className="h-8 text-xs" placeholder="Search nodes…" value={paletteQuery} onChange={e => setPaletteQuery(e.target.value)} />
-          {paletteGroups.map(([cat, items]) => (
-            <div key={cat} className="space-y-1">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground pt-1">{cat}</p>
-              {items.map(d => (
-                <div key={d.type} draggable
-                  onDragStart={e => e.dataTransfer.setData("application/reflow-nodetype", d.type)}
-                  title={d.description}
-                  className="border rounded p-2 cursor-grab hover:bg-accent/50 flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${(CATEGORY_COLORS[d.category] ?? "bg-gray-300").split(" ")[0]}`} />
-                  <div>
-                    <div className="text-xs font-medium">{d.displayName}</div>
-                    <div className="text-[10px] font-mono text-muted-foreground">{d.type}</div>
+      {/* Main Workspace Body */}
+      {/* 1. Canvas View */}
+      <div className={activeView === "canvas" ? "flex flex-1 min-h-0 relative" : "hidden"}>
+        {/* Left: Palette */}
+        <div className="w-56 border-r p-3 space-y-2.5 overflow-auto bg-card/30 shrink-0">
+          <div className="space-y-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Components</span>
+            <Input className="h-8 text-xs" placeholder="Search nodes…" value={paletteQuery} onChange={e => setPaletteQuery(e.target.value)} />
+          </div>
+
+          <div className="space-y-3">
+            {paletteGroups.map(([cat, items]) => (
+              <div key={cat} className="space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground pt-1">{cat}</p>
+                {items.map(d => (
+                  <div key={d.type} draggable
+                    onDragStart={e => e.dataTransfer.setData("application/reflow-nodetype", d.type)}
+                    title={d.description}
+                    className="border rounded-md p-2 cursor-grab hover:bg-accent/60 transition-colors flex items-center gap-2 bg-card shadow-2xs">
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${(CATEGORY_COLORS[d.category] ?? "bg-gray-300").split(" ")[0]}`} />
+                    <div className="min-w-0">
+                      <div className="text-xs font-medium truncate">{d.displayName}</div>
+                      <div className="text-[10px] font-mono text-muted-foreground truncate">{d.type}</div>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ))}
-          {paletteGroups.length === 0 && <p className="text-xs text-muted-foreground">No nodes match.</p>}
-          <Button size="sm" variant="outline" className="w-full" onClick={autoLayout}>Auto-layout</Button>
-          {selectedEdgeId && (
-            <Button size="sm" variant="outline" className="w-full text-destructive"
-              onClick={() => { setEdges(es => es.filter(e => e.id !== selectedEdgeId)); setSelectedEdgeId(null) }}>
-              Delete selected edge (Del)
+                ))}
+              </div>
+            ))}
+            {paletteGroups.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No components match.</p>}
+          </div>
+
+          <div className="pt-2 border-t space-y-1">
+            <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={autoLayout}>
+              Auto-layout Canvas
             </Button>
-          )}
+            {selectedEdgeId && (
+              <Button size="sm" variant="outline" className="w-full text-destructive text-xs h-7"
+                onClick={() => { setEdges(es => es.filter(e => e.id !== selectedEdgeId)); setSelectedEdgeId(null) }}>
+                Delete Selected Edge
+              </Button>
+            )}
+          </div>
         </div>
 
-        <div className="flex-1 min-w-0" onDrop={onDrop} onDragOver={e => e.preventDefault()}>
+        {/* Center: ReactFlow Canvas */}
+        <div className="flex-1 min-w-0 h-full relative" onDrop={onDrop} onDragOver={e => e.preventDefault()}>
           <ReactFlow
             nodes={nodes} edges={edges}
             onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect}
@@ -777,24 +866,42 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
             <Controls />
             <MiniMap pannable zoomable />
           </ReactFlow>
+
+          {/* Running Status Pill Overlay */}
+          {activeRun && activeRun.status < 2 && (
+            <div className="absolute bottom-4 right-4 z-10 flex items-center gap-2 bg-card border shadow-lg px-3 py-1.5 rounded-full text-xs">
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
+              <span className="font-medium text-foreground">
+                Running ({Math.max(0, Math.round((now - parseUtcDate(activeRun.startedAt ?? activeRun.createdAt)) / 1000))}s)
+              </span>
+              <button
+                onClick={() => setActiveView("runs")}
+                className="text-primary underline font-medium hover:text-primary/80 ml-1"
+              >
+                View Console →
+              </button>
+            </div>
+          )}
         </div>
 
-        <div className="w-96 border-l overflow-auto">
+        {/* Right: Selected Node Configuration Inspector */}
+        <div className="w-80 border-l overflow-auto bg-card/20 shrink-0">
           {selected ? (
-            <div className="p-3 space-y-3">
-              <div className="flex items-start gap-2">
+            <div className="p-3.5 space-y-3.5">
+              <div className="flex items-start justify-between gap-2 border-b pb-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{(selected.data as unknown as FlowNodeData).label}</p>
-                  <p className="text-[10px] font-mono text-muted-foreground truncate">table: {selected.id}</p>
+                  <p className="text-sm font-semibold truncate">{(selected.data as unknown as FlowNodeData).label}</p>
+                  <p className="text-[10px] font-mono text-muted-foreground truncate">node: {selected.id}</p>
                 </div>
-                <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700 shrink-0">
+                <span className="text-[10px] px-2 py-0.5 rounded font-mono font-medium bg-blue-100 text-blue-700 shrink-0">
                   {(selected.data as unknown as FlowNodeData).nodeType}
                 </span>
               </div>
+
               <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">Table Name (for SQL queries)</label>
+                <label className="text-xs font-semibold text-foreground">Table Name (for SQL queries)</label>
                 <Input
-                  className="font-mono text-xs"
+                  className="font-mono text-xs h-8"
                   placeholder="e.g. orders, age, users"
                   value={nodeIdInput}
                   onChange={e => setNodeIdInput(e.target.value)}
@@ -802,124 +909,334 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                   onKeyDown={e => { if (e.key === "Enter") commitNodeIdChange() }}
                 />
                 <p className="text-[10px] text-muted-foreground">
-                  Query this node in SQL as: <code className="bg-muted px-1 py-0.5 rounded font-mono font-semibold">{nodeIdInput.trim() || selected.id}</code>
+                  Reference this node in SQL as: <code className="bg-muted px-1 py-0.5 rounded font-mono font-semibold">{nodeIdInput.trim() || selected.id}</code>
                 </p>
               </div>
+
               <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">Display Label</label>
-                <Input placeholder="Label" value={(selected.data as unknown as FlowNodeData).label}
-                  onChange={e => patchSelected({ label: e.target.value })} />
+                <label className="text-xs font-semibold text-foreground">Display Label</label>
+                <Input
+                  className="h-8 text-xs"
+                  placeholder="Display name on canvas"
+                  value={(selected.data as unknown as FlowNodeData).label}
+                  onChange={e => patchSelected({ label: e.target.value })}
+                />
               </div>
-              <NodeConfigForm
-                nodeType={(selected.data as unknown as FlowNodeData).nodeType}
-                configJson={(selected.data as unknown as FlowNodeData).configJson}
-                onChange={c => patchSelected({ configJson: c })} />
-              <Button size="sm" variant="ghost" className="text-destructive"
-                onClick={() => {
-                  setNodes(ns => ns.filter(n => n.id !== selectedId))
-                  setEdges(es => es.filter(e => e.source !== selectedId && e.target !== selectedId))
-                  setSelectedId(null)
-                }}>Delete node</Button>
+
+              <div className="space-y-1 pt-1 border-t">
+                <label className="text-xs font-semibold text-foreground">Node Configuration</label>
+                <NodeConfigForm
+                  nodeType={(selected.data as unknown as FlowNodeData).nodeType}
+                  configJson={(selected.data as unknown as FlowNodeData).configJson}
+                  onChange={c => patchSelected({ configJson: c })}
+                />
+              </div>
+
+              <div className="pt-3 border-t">
+                <Button size="sm" variant="ghost" className="w-full text-destructive hover:bg-destructive/10 text-xs h-8"
+                  onClick={() => {
+                    setNodes(ns => ns.filter(n => n.id !== selectedId))
+                    setEdges(es => es.filter(e => e.source !== selectedId && e.target !== selectedId))
+                    setSelectedId(null)
+                  }}>
+                  Delete Node
+                </Button>
+              </div>
             </div>
           ) : (
-            <p className="p-3 text-sm text-muted-foreground">Select a node to edit its config. Drag between handles to connect; click an edge to delete it.</p>
-          )}
-
-          <div className="p-3 border-t">
-            <p className="text-sm font-medium mb-2">Runs</p>
-            {activeRun && activeRun.status < 2 && (
-              <p className="text-xs text-blue-700 mb-1">
-                ● Running {Math.max(0, Math.round((now - parseUtcDate(activeRun.startedAt ?? activeRun.createdAt)) / 1000))}s
-              </p>
-            )}
-            <div className="space-y-1">
-              {runList.map(r => (
-                <div key={r.id} className="flex items-center gap-2 text-xs">
-                  <button className="underline font-mono" onClick={() => { setRunId(r.id); selectTask(null) }}>
-                    v{r.versionNumber} · {RUN_STATUSES[r.status]}
-                  </button>
-                  <span className="text-muted-foreground">{r.triggerKind}</span>
-                  {r.status < 2 && <button className="text-muted-foreground" onClick={() => runs.cancel(r.id).then(reload).catch(fail)}>cancel</button>}
-                </div>
-              ))}
-              {runList.length === 0 && <p className="text-xs text-muted-foreground">No runs yet — publish, then Run.</p>}
+            <div className="p-6 text-center text-xs text-muted-foreground space-y-2">
+              <p className="font-medium text-foreground">No node selected</p>
+              <p>Click any node on the canvas to configure its table name and parameters.</p>
+              <p className="pt-2 text-[11px] opacity-75">Drag components from the left palette to add nodes.</p>
             </div>
-            {runId && (
-              <div className="mt-2 space-y-1">
-                {tasks.map(t => (
-                  <div key={t.id} className="text-xs">
-                    <button className="underline font-mono" onClick={() => selectTask(t.id)}>{t.nodeId}</button>
-                    {" "}{TASK_STATUSES[t.status]} · ×{t.attemptCount}
-                    {t.error && <span className="text-destructive"> {t.error}</span>}
-                    {t.status === 4 && <button className="underline ml-1" onClick={() => runs.retryTask(t.id).then(reload).catch(fail)}>retry</button>}
-                    {t.nodeType === "data.output" && t.status === 3 && runId &&
-                      <a className="underline ml-1" href={artifactUrl(runId, t.nodeId)} download>download</a>}
+          )}
+        </div>
+      </div>
+
+      {/* 2. Runs & Logs View */}
+      {activeView === "runs" && (
+        <div className="flex-1 flex min-h-0 overflow-hidden bg-background">
+          {/* Left Runs List */}
+          <div className="w-64 border-r flex flex-col bg-card/30 shrink-0">
+            <div className="p-3 border-b flex items-center justify-between">
+              <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Run History</span>
+              <span className="text-[11px] font-mono text-muted-foreground">{runList.length} total</span>
+            </div>
+            <div className="flex-1 overflow-auto p-2 space-y-1">
+              {runList.map(r => {
+                const isSelected = r.id === runId
+                return (
+                  <button
+                    key={r.id}
+                    onClick={() => { setRunId(r.id); selectTask(null) }}
+                    className={`w-full text-left p-2.5 rounded-lg border transition-all text-xs space-y-1 ${
+                      isSelected
+                        ? "bg-accent border-primary/50 shadow-2xs"
+                        : "hover:bg-muted/40 border-transparent hover:border-border"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold font-mono text-foreground">v{r.versionNumber}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                        r.status === 2 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400" :
+                        r.status === 3 ? "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400" :
+                        r.status === 1 ? "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 animate-pulse" :
+                        "bg-muted text-muted-foreground"
+                      }`}>
+                        {RUN_STATUSES[r.status]}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span className="capitalize">{r.triggerKind}</span>
+                      {r.status < 2 ? (
+                        <span className="text-blue-600 font-mono">
+                          {Math.max(0, Math.round((now - parseUtcDate(r.startedAt ?? r.createdAt)) / 1000))}s
+                        </span>
+                      ) : (
+                        <span>{new Date(parseUtcDate(r.createdAt)).toLocaleTimeString()}</span>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+              {runList.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-8">
+                  No runs yet. Click <strong>▶ Run Test</strong> in the header to run this pipeline.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Right Run Details & Console */}
+          <div className="flex-1 flex flex-col min-w-0 overflow-auto">
+            {activeRun ? (
+              <div className="p-4 space-y-4 max-w-5xl w-full">
+                {/* Run Header Banner */}
+                <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold">Run v{activeRun.versionNumber}</h3>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        activeRun.status === 2 ? "bg-emerald-100 text-emerald-700" :
+                        activeRun.status === 3 ? "bg-rose-100 text-rose-700" :
+                        activeRun.status === 1 ? "bg-blue-100 text-blue-700" : "bg-muted text-muted-foreground"
+                      }`}>
+                        {RUN_STATUSES[activeRun.status]}
+                      </span>
+                      <span className="text-xs text-muted-foreground font-mono">({activeRun.triggerKind} trigger)</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Started: {new Date(parseUtcDate(activeRun.startedAt ?? activeRun.createdAt)).toLocaleString()}
+                    </p>
                   </div>
-                ))}
+
+                  <div className="flex items-center gap-2">
+                    {activeRun.status < 2 && (
+                      <Button size="sm" variant="outline" className="text-destructive h-8 text-xs" onClick={() => runs.cancel(activeRun.id).then(reload).catch(fail)}>
+                        Cancel Run
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {activeRun.error && (
+                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-mono">
+                    {activeRun.error}
+                  </div>
+                )}
+
+                {/* Tasks Node Cards */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Executed Nodes</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {tasks.map(t => {
+                      const isSelected = t.id === taskDetailId
+                      return (
+                        <div
+                          key={t.id}
+                          onClick={() => selectTask(t.id)}
+                          className={`p-3 rounded-lg border cursor-pointer transition-all space-y-1.5 ${
+                            isSelected ? "border-primary bg-accent/60 shadow-xs" : "bg-card hover:border-border"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono font-medium text-xs text-foreground truncate">{t.nodeId}</span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                              t.status === 3 ? "bg-emerald-100 text-emerald-700" :
+                              t.status === 4 ? "bg-rose-100 text-rose-700" :
+                              t.status === 2 ? "bg-blue-100 text-blue-700 animate-pulse" : "bg-muted text-muted-foreground"
+                            }`}>
+                              {TASK_STATUSES[t.status]}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                            <span className="font-mono text-[10px]">{t.nodeType}</span>
+                            <div className="flex items-center gap-1.5">
+                              {t.status === 4 && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); runs.retryTask(t.id).then(reload).catch(fail) }}
+                                  className="text-primary hover:underline"
+                                >
+                                  retry
+                                </button>
+                              )}
+                              {t.nodeType === "data.output" && t.status === 3 && runId && (
+                                <a
+                                  onClick={e => e.stopPropagation()}
+                                  href={artifactUrl(runId, t.nodeId)}
+                                  download
+                                  className="text-emerald-600 hover:underline"
+                                >
+                                  download
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                          {t.error && <p className="text-[11px] text-destructive truncate">{t.error}</p>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Output Preview Table (if task selected) */}
                 {taskDetail && (
-                  <div className="border rounded p-2 space-y-1">
-                    <p className="text-xs font-medium">Output preview</p>
-                    {outputPreview ? (
-                      <div className="overflow-auto max-h-48 border rounded">
-                        <table className="text-[11px] font-mono w-full border-collapse">
-                          <thead className="bg-muted/60 sticky top-0"><tr>{outputPreview.cols.map(c => <th key={c} className="text-left px-2 py-1 border-b font-semibold">{c}</th>)}</tr></thead>
-                          <tbody>{outputPreview.rows.map((r, i) => (
-                            <tr key={i} className="odd:bg-muted/20 hover:bg-muted/40 transition-colors">{outputPreview.cols.map(c => <td key={c} className="px-2 py-0.5 border-b">{r[c] ?? "∅"}</td>)}</tr>
-                          ))}</tbody>
-                        </table>
-                        <p className="text-[10px] text-muted-foreground p-1">showing {outputPreview.rows.length} of {outputPreview.total} rows</p>
+                  <div className="space-y-3 border rounded-lg bg-card p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-xs font-semibold text-foreground">
+                          Output Preview: <code className="font-mono text-primary">{taskDetail.nodeId}</code>
+                        </h4>
+                        {attempts.length > 1 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">
+                            {attempts.length} attempts
+                          </span>
+                        )}
                       </div>
-                    ) : <p className="text-xs text-muted-foreground">No output yet.</p>}
-                    {attempts.length > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        Attempts: {attempts.map(a => `#${a.attemptNumber} ${TASK_STATUSES[a.status]}${a.error ? ` (${a.error})` : ""}`).join(" · ")}
-                      </p>
+                      {outputPreview && (
+                        <span className="text-[11px] text-muted-foreground font-mono">
+                          Showing {outputPreview.rows.length} of {outputPreview.total} rows
+                        </span>
+                      )}
+                    </div>
+
+                    {attempts.length > 1 && (
+                      <div className="border rounded p-2 bg-muted/20 space-y-1">
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase">Retry History</p>
+                        <div className="flex flex-wrap gap-2">
+                          {attempts.map(a => (
+                            <span key={a.attemptNumber} className="text-[11px] font-mono px-2 py-0.5 rounded border bg-card flex items-center gap-1.5">
+                              <span>#{a.attemptNumber}</span>
+                              <span className={a.status === 3 ? "text-emerald-600" : "text-rose-600"}>
+                                {TASK_STATUSES[a.status] ?? a.status}
+                              </span>
+                              {a.error && <span className="text-destructive truncate max-w-xs">({a.error})</span>}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {outputPreview ? (
+                      <div className="overflow-auto max-h-60 border rounded">
+                        <table className="text-xs font-mono w-full border-collapse">
+                          <thead className="bg-muted/60 sticky top-0">
+                            <tr>
+                              {outputPreview.cols.map(c => (
+                                <th key={c} className="text-left px-2.5 py-1.5 border-b font-semibold text-foreground">
+                                  {c}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {outputPreview.rows.map((r, i) => (
+                              <tr key={i} className="odd:bg-muted/15 hover:bg-muted/30 transition-colors">
+                                {outputPreview.cols.map(c => (
+                                  <td key={c} className="px-2.5 py-1 border-b text-muted-foreground truncate max-w-xs">
+                                    {r[c] ?? "∅"}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground py-2">No output rows for this task.</p>
                     )}
                   </div>
                 )}
-                <div className="max-h-40 overflow-auto text-[11px] font-mono bg-muted/50 rounded p-2">
-                  {logs.map((l, i) => <p key={i}>[{l.level}] {l.message}</p>)}
+
+                {/* Console Log Terminal */}
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Live Execution Logs</p>
+                  <div className="rounded-lg border bg-zinc-950 p-3 font-mono text-xs text-zinc-200 max-h-56 overflow-auto space-y-1">
+                    {logs.map((l, i) => {
+                      const levelColor =
+                        l.level === "Error" ? "text-rose-400 font-bold" :
+                        l.level === "Warning" ? "text-amber-400 font-bold" : "text-emerald-400"
+                      return (
+                        <div key={i} className="flex items-start gap-2 leading-relaxed">
+                          <span className="text-zinc-500 shrink-0">
+                            {l.timestamp ? new Date(parseUtcDate(l.timestamp)).toLocaleTimeString() : "--:--:--"}
+                          </span>
+                          <span className={`shrink-0 ${levelColor}`}>[{l.level.toUpperCase()}]</span>
+                          <span className="break-all">{l.message}</span>
+                        </div>
+                      )
+                    })}
+                    {logs.length === 0 && <p className="text-zinc-500 italic">Waiting for log output...</p>}
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
-
-          <div className="p-3 border-t">
-            <p className="text-sm font-medium mb-2">Versions ({versionList.length})</p>
-            <div className="space-y-1">
-              {versionList.map(v => (
-                <button key={v.versionNumber} className="block text-xs underline font-mono"
-                  onClick={() => versions.detail(pipelineId, v.versionNumber).then(setVersionDetail).catch(fail)}>
-                  v{v.versionNumber} · {new Date(parseUtcDate(v.publishedAt)).toLocaleString()}
-                </button>
-              ))}
-            </div>
-            {versionDetail && (
-              <pre className="text-[10px] font-mono bg-muted/50 rounded p-2 mt-2 max-h-48 overflow-auto">
-                {JSON.stringify(JSON.parse(versionDetail.definition), null, 1)}
-              </pre>
-            )}
-          </div>
-
-          <div className="p-3 border-t">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium">Triggers & Schedules</p>
-              <div className="flex items-center gap-1">
-                <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => setScheduleDialogOpen(true)}>
-                  + Schedule
-                </Button>
-                <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => setWebhookDialogOpen(true)}>
-                  + Webhook
-                </Button>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
+                Select a run from the left history to view its timeline and logs.
               </div>
-            </div>
+            )}
+          </div>
+        </div>
+      )}
 
-            <div className="space-y-1.5">
-              {triggerList.map(t => (
-                <div key={t.id} className="p-2 rounded border bg-card/60 space-y-1 text-xs">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      {t.kind === 0 ? (
+      {/* 3. Triggers & Schedules View */}
+      {activeView === "triggers" && (
+        <div className="flex-1 overflow-auto p-6 max-w-5xl mx-auto w-full space-y-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Triggers & Schedules</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Configure automated cron schedules and external webhook endpoints to execute this pipeline.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => setScheduleDialogOpen(true)}>
+                + Add Schedule
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => setWebhookDialogOpen(true)}>
+                + Add Webhook
+              </Button>
+            </div>
+          </div>
+
+          {/* Schedules Section */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Recurring Schedules</h3>
+            <div className="border rounded-lg bg-card overflow-hidden">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/40 border-b text-muted-foreground">
+                  <tr>
+                    <th className="text-left px-3 py-2 w-16">Active</th>
+                    <th className="text-left px-3 py-2">Name</th>
+                    <th className="text-left px-3 py-2">Schedule</th>
+                    <th className="text-left px-3 py-2">Timezone</th>
+                    <th className="text-left px-3 py-2">Concurrency</th>
+                    <th className="text-right px-3 py-2 w-20">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {triggerList.filter(t => t.kind === 0).map(t => (
+                    <tr key={t.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-3 py-2.5">
                         <button
                           onClick={async () => {
                             try {
@@ -927,46 +1244,67 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                               reload()
                             } catch (e) { fail(e) }
                           }}
-                          className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center transition-colors ${
+                          className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
                             t.isEnabled ? "bg-emerald-600 border-emerald-600 text-white" : "border-muted-foreground/40 bg-transparent"
                           }`}
-                          title={t.isEnabled ? "Schedule active (click to pause)" : "Schedule paused (click to enable)"}
+                          title={t.isEnabled ? "Enabled (click to pause)" : "Paused (click to activate)"}
                         >
-                          {t.isEnabled && <span className="text-[8px] font-bold">✓</span>}
+                          {t.isEnabled && <span className="text-[9px] font-bold">✓</span>}
                         </button>
-                      ) : (
-                        <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" title="Webhook Trigger" />
-                      )}
-                      <span className="font-medium truncate text-foreground">{t.name}</span>
-                      <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-muted text-muted-foreground">
-                        {t.kind === 0 ? "schedule" : "webhook"}
-                      </span>
-                    </div>
-
-                    <button
-                      className="text-muted-foreground hover:text-destructive text-xs px-1"
-                      onClick={() => triggers.remove(pipelineId, t.id).then(reload).catch(fail)}
-                      title="Delete trigger"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  {t.kind === 0 && t.cron && (
-                    <div className="text-[11px] text-muted-foreground pl-5 flex items-center justify-between">
-                      <span>{cronToHuman(t.cron, t.timezone)}</span>
-                      <span className="text-[10px] font-mono opacity-60">{t.overlap === 0 ? "skip" : "queue"}</span>
-                    </div>
-                  )}
-
-                  {t.kind === 1 && (
-                    <div className="pl-3.5 pt-1 space-y-1">
-                      <div className="flex items-center gap-1 text-[11px]">
-                        <span className="font-mono text-[10px] text-muted-foreground truncate bg-muted/40 px-1 py-0.5 rounded flex-1">
-                          /api/v1/hooks/••••••••
-                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 font-medium text-foreground">{t.name}</td>
+                      <td className="px-3 py-2.5 text-foreground font-medium">
+                        {t.cron ? cronToHuman(t.cron, t.timezone) : "--"}
+                      </td>
+                      <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground">{t.timezone || "UTC"}</td>
+                      <td className="px-3 py-2.5 text-[11px] text-muted-foreground">
+                        {t.overlap === 0 ? "Skip if active" : "Queue next"}
+                      </td>
+                      <td className="px-3 py-2.5 text-right">
                         <button
-                          className="text-primary hover:underline text-[11px]"
+                          className="text-muted-foreground hover:text-destructive text-xs px-1.5 py-0.5 rounded"
+                          onClick={() => triggers.remove(pipelineId, t.id).then(reload).catch(fail)}
+                          title="Delete schedule"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {triggerList.filter(t => t.kind === 0).length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-center py-6 text-muted-foreground">
+                        No automated schedules created yet. Click <strong>+ Add Schedule</strong> to set one up.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Webhooks Section */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Inbound Webhooks</h3>
+            <div className="border rounded-lg bg-card overflow-hidden">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/40 border-b text-muted-foreground">
+                  <tr>
+                    <th className="text-left px-3 py-2">Webhook Name</th>
+                    <th className="text-left px-3 py-2">Endpoint URL</th>
+                    <th className="text-right px-3 py-2 w-32">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {triggerList.filter(t => t.kind === 1).map(t => (
+                    <tr key={t.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-3 py-2.5 font-medium text-foreground">{t.name}</td>
+                      <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground">
+                        {window.location.origin}/api/v1/hooks/••••••••
+                      </td>
+                      <td className="px-3 py-2.5 text-right space-x-2">
+                        <button
+                          className="text-primary hover:underline text-xs"
                           onClick={async () => {
                             try {
                               const r = await triggers.regenerateWebhook(pipelineId, t.id)
@@ -977,20 +1315,81 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                         >
                           Copy URL
                         </button>
-                      </div>
-                    </div>
+                        <button
+                          className="text-muted-foreground hover:text-destructive text-xs"
+                          onClick={() => triggers.remove(pipelineId, t.id).then(reload).catch(fail)}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {triggerList.filter(t => t.kind === 1).length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="text-center py-6 text-muted-foreground">
+                        No webhooks generated yet. Click <strong>+ Add Webhook</strong> to create an endpoint.
+                      </td>
+                    </tr>
                   )}
-                </div>
-              ))}
-              {triggerList.length === 0 && (
-                <p className="text-xs text-muted-foreground py-2 text-center border border-dashed rounded">
-                  No automated schedules or webhooks yet.
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Versions View */}
+      {activeView === "versions" && (
+        <div className="flex-1 overflow-auto p-6 max-w-4xl mx-auto w-full space-y-4">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Published Versions</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Each published version is an immutable snapshot used for scheduled runs and execution.
+            </p>
+          </div>
+
+          <div className="border rounded-lg bg-card overflow-hidden">
+            <div className="divide-y">
+              {versionList.map(v => {
+                const isSelected = versionDetail?.versionNumber === v.versionNumber
+                return (
+                  <div key={v.versionNumber} className="p-3 hover:bg-muted/20 transition-colors space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-semibold text-xs text-foreground bg-primary/10 text-primary px-2 py-0.5 rounded">
+                          v{v.versionNumber}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          Published: {new Date(parseUtcDate(v.publishedAt)).toLocaleString()}
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={() => versions.detail(pipelineId, v.versionNumber).then(setVersionDetail).catch(fail)}
+                      >
+                        {isSelected ? "Hide Snapshot" : "Inspect Snapshot"}
+                      </Button>
+                    </div>
+
+                    {isSelected && versionDetail && (
+                      <pre className="text-[11px] font-mono bg-muted/50 rounded-lg p-3 max-h-64 overflow-auto border">
+                        {JSON.stringify(JSON.parse(versionDetail.definition), null, 2)}
+                      </pre>
+                    )}
+                  </div>
+                )
+              })}
+              {versionList.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-8">
+                  No published versions yet. Click <strong>Publish</strong> in the top header to create version 1.
                 </p>
               )}
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       <ScheduleDialog
         isOpen={scheduleDialogOpen}
