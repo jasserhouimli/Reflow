@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import {
   ReactFlow, ReactFlowProvider, useReactFlow, Background, Controls, MiniMap, Handle, Position,
   applyNodeChanges, applyEdgeChanges, addEdge, MarkerType,
@@ -374,6 +374,8 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
   const { screenToFlowPosition } = useReactFlow()
   const [detail, setDetail] = useState<PipelineDetail | null>(null)
   const [defs, setDefs] = useState<NodeDefinition[]>([])
+  const defsRef = useRef<NodeDefinition[]>([])
+  useEffect(() => { defsRef.current = defs }, [defs])
   const [name, setName] = useState("")
   const [nodes, setNodes] = useState<Node[]>([])
   const [edges, setEdges] = useState<Edge[]>([])
@@ -392,6 +394,14 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
   const [taskDetailId, setTaskDetailId] = useState<string | null>(null)
   const [taskDetail, setTaskDetail] = useState<TaskDetail | null>(null)
   const [attempts, setAttempts] = useState<TaskAttempt[]>([])
+
+  const selectTask = (id: string | null) => {
+    setTaskDetailId(id)
+    if (!id) {
+      setTaskDetail(null)
+      setAttempts([])
+    }
+  }
 
   const [versionList, setVersionList] = useState<Array<{ versionNumber: number; publishedAt: string }>>([])
   const [versionDetail, setVersionDetail] = useState<VersionDetail | null>(null)
@@ -499,7 +509,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
     try {
       const d = await pipelines.get(pipelineId)
       setDetail(d); setName(d.name)
-      const n = toFlow(d, defs); const e = toFlowEdges(d.edges)
+      const n = toFlow(d, defsRef.current); const e = toFlowEdges(d.edges)
       setNodes(n); setEdges(e)
       setSavedSnap(snapshot(d.name, n, e))
       setRunList(await runs.list(pipelineId))
@@ -509,8 +519,21 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
   }, [pipelineId])
 
   useEffect(() => {
-    nodeTypes.list().then(setDefs).catch(() => setDefs([]))
-    reload()
+    let alive = true
+    nodeTypes.list()
+      .then(d => {
+        if (!alive) return
+        defsRef.current = d
+        setDefs(d)
+        void reload()
+      })
+      .catch(() => {
+        if (!alive) return
+        defsRef.current = []
+        setDefs([])
+        void reload()
+      })
+    return () => { alive = false }
   }, [reload])
 
   useEffect(() => {
@@ -536,9 +559,15 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
   }, [runId])
 
   useEffect(() => {
-    if (!taskDetailId) { setTaskDetail(null); setAttempts([]); return }
-    runs.taskDetail(taskDetailId).then(setTaskDetail).catch(fail)
-    runs.taskAttempts(taskDetailId).then(setAttempts).catch(() => setAttempts([]))
+    if (!taskDetailId) return
+    let alive = true
+    runs.taskDetail(taskDetailId)
+      .then(d => { if (alive) setTaskDetail(d) })
+      .catch(fail)
+    runs.taskAttempts(taskDetailId)
+      .then(a => { if (alive) setAttempts(a) })
+      .catch(() => { if (alive) setAttempts([]) })
+    return () => { alive = false }
   }, [taskDetailId])
 
   const onNodesChange = useCallback(
@@ -625,7 +654,11 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
           <Button size="sm" variant="outline" onClick={async () => {
             try {
               const r = await pipelines.validate(pipelineId)
-              r.valid ? say("Valid") : fail(r.errors.join("; "))
+              if (r.valid) {
+                say("Valid")
+              } else {
+                fail(r.errors.join("; "))
+              }
             } catch (e) { fail(e) }
           }}>Validate</Button>
           <Button size="sm" variant="outline" onClick={async () => {
@@ -635,7 +668,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
             } catch (e) { fail(e) }
           }}>Publish</Button>
           <Button size="sm" variant="outline" onClick={async () => {
-            try { const id = await runs.start(pipelineId); setRunId(id); setTaskDetailId(null); say("Run started"); reload() }
+            try { const id = await runs.start(pipelineId); setRunId(id); selectTask(null); say("Run started"); reload() }
             catch (e) { fail(e) }
           }}>Run</Button>
           <Button size="sm" variant="ghost" onClick={async () => {
@@ -732,7 +765,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
             <div className="space-y-1">
               {runList.map(r => (
                 <div key={r.id} className="flex items-center gap-2 text-xs">
-                  <button className="underline font-mono" onClick={() => { setRunId(r.id); setTaskDetailId(null) }}>
+                  <button className="underline font-mono" onClick={() => { setRunId(r.id); selectTask(null) }}>
                     v{r.versionNumber} · {RUN_STATUSES[r.status]}
                   </button>
                   <span className="text-muted-foreground">{r.triggerKind}</span>
@@ -745,7 +778,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
               <div className="mt-2 space-y-1">
                 {tasks.map(t => (
                   <div key={t.id} className="text-xs">
-                    <button className="underline font-mono" onClick={() => setTaskDetailId(t.id)}>{t.nodeId}</button>
+                    <button className="underline font-mono" onClick={() => selectTask(t.id)}>{t.nodeId}</button>
                     {" "}{TASK_STATUSES[t.status]} · ×{t.attemptCount}
                     {t.error && <span className="text-destructive"> {t.error}</span>}
                     {t.status === 4 && <button className="underline ml-1" onClick={() => runs.retryTask(t.id).then(reload).catch(fail)}>retry</button>}
