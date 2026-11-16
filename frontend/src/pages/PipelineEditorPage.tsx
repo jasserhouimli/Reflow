@@ -99,7 +99,11 @@ function FileReadConfigForm({ configJson, onChange }: {
   const [showLibrary, setShowLibrary] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const set = (k: string, v: unknown) => onChange(JSON.stringify({ ...cfg, [k]: v }, null, 1))
+  const updateConfig = (patch: Record<string, unknown>) => {
+    const current = parseConfig(configJson) ?? {}
+    onChange(JSON.stringify({ ...current, ...patch }, null, 1))
+  }
+  const set = (k: string, v: unknown) => updateConfig({ [k]: v })
   const str = (k: string) => typeof cfg[k] === "string" ? cfg[k] as string : ""
 
   const loadFiles = useCallback(() => {
@@ -112,6 +116,16 @@ function FileReadConfigForm({ configJson, onChange }: {
     loadFiles()
   }, [loadFiles])
 
+  const selectFile = (f: SourceFile) => {
+    const isJsonFile = f.fileName.toLowerCase().endsWith(".json")
+    updateConfig({
+      fileId: f.id,
+      format: isJsonFile ? "json" : "csv",
+    })
+    setShowLibrary(false)
+    setError("")
+  }
+
   const upload = async (file: File) => {
     if (!file.name.toLowerCase().endsWith(".csv") && !file.name.toLowerCase().endsWith(".json")) {
       setError("Only .csv and .json files are supported")
@@ -123,9 +137,7 @@ function FileReadConfigForm({ configJson, onChange }: {
       const content = await file.text()
       const created = await files.upload(file.name, content)
       loadFiles()
-      set("fileId", created.id)
-      set("format", file.name.toLowerCase().endsWith(".json") ? "json" : "csv")
-      setShowLibrary(false)
+      selectFile(created)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed")
     } finally {
@@ -139,7 +151,7 @@ function FileReadConfigForm({ configJson, onChange }: {
       await files.remove(id)
       loadFiles()
       if (str("fileId") === id) {
-        set("fileId", "")
+        updateConfig({ fileId: "" })
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete file")
@@ -175,7 +187,7 @@ function FileReadConfigForm({ configJson, onChange }: {
               </div>
             </div>
             <button
-              onClick={() => set("fileId", "")}
+              onClick={() => updateConfig({ fileId: "" })}
               className="text-muted-foreground hover:text-foreground text-xs p-1 rounded hover:bg-muted"
               title="Deselect file"
             >
@@ -285,11 +297,7 @@ function FileReadConfigForm({ configJson, onChange }: {
               return (
                 <div
                   key={f.id}
-                  onClick={() => {
-                    set("fileId", f.id)
-                    set("format", isJsonFile ? "json" : "csv")
-                    setShowLibrary(false)
-                  }}
+                  onClick={() => selectFile(f)}
                   className={`flex items-center justify-between p-2 rounded-md cursor-pointer transition-colors text-xs ${
                     isSelected ? "bg-primary/15 border border-primary/40 font-medium" : "hover:bg-muted/60"
                   }`}
@@ -308,8 +316,13 @@ function FileReadConfigForm({ configJson, onChange }: {
                     </span>
                     <Button
                       size="sm"
+                      type="button"
                       variant={isSelected ? "default" : "outline"}
-                      className="h-5 px-2 text-[10px] font-mono pointer-events-none"
+                      className="h-6 px-2 text-[10px] font-mono"
+                      onClick={e => {
+                        e.stopPropagation()
+                        selectFile(f)
+                      }}
                     >
                       {isSelected ? "Selected" : "Select"}
                     </Button>
