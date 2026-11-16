@@ -204,12 +204,12 @@ export function EditorAiDialog({
   const selectedNodeData = draft?.nodes.find(n => n.nodeId === selectedPreviewNodeId)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-0 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-overlay-fade">
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Generate Workflow with AI"
-        className="w-full max-w-4xl max-h-[90vh] flex flex-col rounded-xl border bg-card shadow-2xl overflow-hidden"
+        className="w-full max-w-4xl max-h-[90vh] flex flex-col rounded-xl border bg-card shadow-2xl overflow-hidden animate-dialog-pop"
       >
         {/* Header */}
         <div className="px-5 py-3.5 border-b flex items-center justify-between bg-muted/20">

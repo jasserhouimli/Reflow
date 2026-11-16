@@ -84,11 +84,11 @@ export function ScheduleDialog({ isOpen, onClose, onSave }: Props) {
   const timezones = Array.from(new Set([timezone, ...COMMON_TIMEZONES])).sort()
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-overlay-fade">
       <div
         role="dialog"
         aria-modal="true"
-        className="w-full max-w-md rounded-lg border bg-background p-5 shadow-xl space-y-4"
+        className="w-full max-w-md rounded-lg border bg-background p-5 shadow-xl space-y-4 animate-dialog-pop"
       >
         <div className="flex items-start justify-between">
           <div>

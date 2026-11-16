@@ -802,7 +802,47 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
     } catch { return null }
   })() : null
 
-  if (!detail) return <div className="p-8">Loading... {err && <p className="text-destructive">{err}</p>}</div>
+  if (!detail) {
+    return (
+      <div className="h-screen flex flex-col bg-background text-foreground">
+        <div className="flex items-center justify-between px-4 py-2 border-b bg-card shrink-0">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground" onClick={onBack}>
+              ←
+            </Button>
+            <Skeleton className="h-5 w-40 rounded" />
+            <Skeleton className="h-4 w-14 rounded-full" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-8 w-20 rounded-md" />
+            <Skeleton className="h-8 w-16 rounded-md" />
+          </div>
+        </div>
+        <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 flex items-center justify-center p-8">
+            {err ? (
+              <p className="text-destructive text-xs bg-destructive/10 border border-destructive/20 p-4 rounded-lg">
+                {err}
+              </p>
+            ) : (
+              <div className="space-y-3 text-center">
+                <Skeleton className="h-10 w-10 rounded-lg mx-auto" />
+                <Skeleton className="h-3 w-32 mx-auto rounded" />
+              </div>
+            )}
+          </div>
+          <div className="w-80 border-l bg-card p-4 space-y-3 hidden md:block">
+            <Skeleton className="h-4 w-24 rounded" />
+            <div className="space-y-2 pt-2">
+              <Skeleton className="h-12 w-full rounded-md" />
+              <Skeleton className="h-12 w-full rounded-md" />
+              <Skeleton className="h-12 w-full rounded-md" />
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="h-screen flex flex-col bg-background text-foreground">
