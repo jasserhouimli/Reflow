@@ -72,8 +72,7 @@ public sealed class SupabaseArtifactStore : IDataArtifactStore
                 var uploadUrl = $"{baseUrl}/storage/v1/object/{bucket}/{objectPath}";
 
                 using var request = new HttpRequestMessage(HttpMethod.Post, uploadUrl);
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.SupabaseKey);
-                request.Headers.Add("apikey", _options.SupabaseKey);
+                ApplyAuthHeaders(request, _options.SupabaseKey);
                 request.Headers.Add("x-upsert", "true");
                 request.Content = new ByteArrayContent(bytes);
                 request.Content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
@@ -122,8 +121,7 @@ public sealed class SupabaseArtifactStore : IDataArtifactStore
                     // 1. Try authenticated endpoint
                     var authUrl = $"{baseUrl}/storage/v1/object/authenticated/{bucket}/{objectPath}";
                     using var authReq = new HttpRequestMessage(HttpMethod.Get, authUrl);
-                    authReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.SupabaseKey);
-                    authReq.Headers.Add("apikey", _options.SupabaseKey);
+                    ApplyAuthHeaders(authReq, _options.SupabaseKey);
 
                     var authRes = await client.SendAsync(authReq, ct);
                     if (authRes.IsSuccessStatusCode)
@@ -158,19 +156,44 @@ public sealed class SupabaseArtifactStore : IDataArtifactStore
     private string GetBucket() =>
         string.IsNullOrWhiteSpace(_options.Bucket) ? "artifacts" : _options.Bucket.Trim('/');
 
+    private static void ApplyAuthHeaders(HttpRequestMessage request, string key)
+    {
+        request.Headers.Add("apikey", key);
+        // Supabase Storage expects a JWT (Compact JWS starting with 'ey') in the Bearer Authorization header.
+        // If the key is a JWT, include it in Authorization: Bearer.
+        if (key.StartsWith("ey", StringComparison.OrdinalIgnoreCase))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
+        }
+        else
+        {
+            // For new opaque keys (e.g. sb_secret_...), provide Authorization header without causing JWS decode errors
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
+        }
+    }
+
     public static string SanitizeBaseUrl(string? url)
     {
         if (string.IsNullOrWhiteSpace(url)) return string.Empty;
         var trimmed = url.Trim();
         if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
         {
-            return uri.GetLeftPart(UriPartial.Authority).TrimEnd('/');
+            var host = uri.Host;
+            // If user supplied S3 endpoint domain 'xxx.storage.supabase.co', convert to standard REST API 'xxx.supabase.co'
+            if (host.EndsWith(".storage.supabase.co", StringComparison.OrdinalIgnoreCase))
+            {
+                host = host.Replace(".storage.supabase.co", ".supabase.co", StringComparison.OrdinalIgnoreCase);
+            }
+            var portPart = uri.IsDefaultPort ? "" : $":{uri.Port}";
+            return $"{uri.Scheme}://{host}{portPart}".TrimEnd('/');
         }
         var s = trimmed.TrimEnd('/');
         if (s.EndsWith("/storage/v1/s3", StringComparison.OrdinalIgnoreCase))
             s = s[..^"/storage/v1/s3".Length];
         else if (s.EndsWith("/storage/v1", StringComparison.OrdinalIgnoreCase))
             s = s[..^"/storage/v1".Length];
+        if (s.Contains(".storage.supabase.co", StringComparison.OrdinalIgnoreCase))
+            s = s.Replace(".storage.supabase.co", ".supabase.co", StringComparison.OrdinalIgnoreCase);
         return s.TrimEnd('/');
     }
 

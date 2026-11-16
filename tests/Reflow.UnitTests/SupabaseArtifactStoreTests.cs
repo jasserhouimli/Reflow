@@ -7,6 +7,8 @@ public class SupabaseArtifactStoreTests
 {
     [Theory]
     [InlineData("https://abcdef.supabase.co/storage/v1/s3", "https://abcdef.supabase.co")]
+    [InlineData("https://bzrmkfutnbcgbktwdyry.storage.supabase.co/storage/v1/s3", "https://bzrmkfutnbcgbktwdyry.supabase.co")]
+    [InlineData("https://bzrmkfutnbcgbktwdyry.storage.supabase.co", "https://bzrmkfutnbcgbktwdyry.supabase.co")]
     [InlineData("https://abcdef.supabase.co/storage/v1", "https://abcdef.supabase.co")]
     [InlineData("https://abcdef.supabase.co/", "https://abcdef.supabase.co")]
     [InlineData("https://abcdef.supabase.co", "https://abcdef.supabase.co")]
