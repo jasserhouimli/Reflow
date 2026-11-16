@@ -45,6 +45,7 @@ import {
   HardDrive,
   LayoutGrid,
   Trash2,
+  Loader2,
 } from "lucide-react"
 
 interface Props {
@@ -521,6 +522,13 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
   const [webhookDialogOpen, setWebhookDialogOpen] = useState(false)
   const [aiDialogOpen, setAiDialogOpen] = useState(false)
 
+  const [isSaving, setIsSaving] = useState(false)
+  const [isRunningTest, setIsRunningTest] = useState(false)
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [isValidating, setIsValidating] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isCancellingRun, setIsCancellingRun] = useState(false)
+
   useEffect(() => {
     const handleGlobalKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -845,6 +853,8 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
   }
 
   const save = async () => {
+    if (isSaving) return
+    setIsSaving(true)
     try {
       const outNodes = nodes.map(n => {
         const d = n.data as unknown as FlowNodeData
@@ -858,13 +868,96 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
       const outEdges = edges.map(e => ({ sourceNodeId: e.source, targetNodeId: e.target }))
       await pipelines.update(pipelineId, { name, nodes: outNodes, edges: outEdges })
       setSavedSnap(snapshot(name, nodes, edges))
-      say("Saved"); reload()
-    } catch (e) { fail(e) }
+      say("Saved")
+      await reload()
+    } catch (e) {
+      fail(e)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleRunTest = async () => {
+    if (isRunningTest) return
+    setIsRunningTest(true)
+    try {
+      const id = await runs.start(pipelineId)
+      setRunId(id)
+      setActiveRunState({
+        id,
+        pipelineId,
+        versionNumber: detail?.currentVersion ?? 1,
+        status: 1,
+        triggerKind: "manual",
+        error: null,
+        createdAt: new Date().toISOString(),
+        startedAt: new Date().toISOString(),
+        completedAt: null,
+      })
+      selectTask(null)
+      setConsoleOpen(true)
+      setConsoleTab("logs")
+      say("Run started")
+      runs.list(pipelineId).then(setRunList).catch(() => {})
+    } catch (e) {
+      fail(e)
+    } finally {
+      setIsRunningTest(false)
+    }
+  }
+
+  const handlePublish = async () => {
+    if (isPublishing) return
+    setIsPublishing(true)
+    try {
+      const r = await pipelines.publish(pipelineId)
+      say(`Published v${r.version}`)
+      await reload()
+    } catch (e) {
+      fail(e)
+    } finally {
+      setIsPublishing(false)
+    }
+  }
+
+  const handleValidate = async () => {
+    if (isValidating) return
+    setIsValidating(true)
+    try {
+      const r = await pipelines.validate(pipelineId)
+      if (r.valid) say("Pipeline is valid")
+      else fail(r.errors.join("; "))
+    } catch (e) {
+      fail(e)
+    } finally {
+      setIsValidating(false)
+    }
   }
 
   const removePipeline = async () => {
     if (!window.confirm(`Delete pipeline "${name}" and all its runs?`)) return
-    try { await pipelines.remove(pipelineId); onBack() } catch (e) { fail(e) }
+    if (isDeleting) return
+    setIsDeleting(true)
+    try {
+      await pipelines.remove(pipelineId)
+      onBack()
+    } catch (e) {
+      fail(e)
+      setIsDeleting(false)
+    }
+  }
+
+  const handleCancelRun = async (runIdToCancel: string) => {
+    if (isCancellingRun) return
+    setIsCancellingRun(true)
+    try {
+      await runs.cancel(runIdToCancel)
+      await reload()
+    } catch (e) {
+      fail(e)
+    } finally {
+      setIsCancellingRun(false)
+    }
   }
 
   const outputPreview = (taskDetail?.outputJson ?? null) ? (() => {
@@ -994,8 +1087,21 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
         <div className="flex items-center gap-2">
           {msg && <span className="text-xs text-emerald-600 font-medium px-2">{msg}</span>}
           {err && <span className="text-xs text-destructive font-medium px-2">{err}</span>}
-          <Button size="sm" variant={dirty ? "default" : "outline"} className="h-8 text-xs font-medium" onClick={save}>
-            Save
+          <Button
+            size="sm"
+            variant={dirty ? "default" : "outline"}
+            className="h-8 text-xs font-medium gap-1.5 min-w-[68px]"
+            onClick={save}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save"
+            )}
           </Button>
           <Button
             size="sm"
@@ -1007,50 +1113,72 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
             <Sparkles className="h-3.5 w-3.5 text-blue-500" />
             AI Assistant
           </Button>
-          <Button size="sm" variant="outline" className="h-8 text-xs font-medium gap-1.5" onClick={async () => {
-            try {
-              const id = await runs.start(pipelineId)
-              setRunId(id)
-              setActiveRunState({
-                id,
-                pipelineId,
-                versionNumber: detail?.currentVersion ?? 1,
-                status: 1,
-                triggerKind: "manual",
-                error: null,
-                createdAt: new Date().toISOString(),
-                startedAt: new Date().toISOString(),
-                completedAt: null,
-              })
-              selectTask(null)
-              setConsoleOpen(true)
-              setConsoleTab("logs")
-              say("Run started")
-              runs.list(pipelineId).then(setRunList).catch(() => {})
-            } catch (e) { fail(e) }
-          }}>
-            <Play className="h-3 w-3 text-emerald-600" />
-            Run Test
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs font-medium gap-1.5 min-w-[88px]"
+            onClick={handleRunTest}
+            disabled={isRunningTest}
+          >
+            {isRunningTest ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600" />
+                Starting...
+              </>
+            ) : (
+              <>
+                <Play className="h-3 w-3 text-emerald-600" />
+                Run Test
+              </>
+            )}
           </Button>
-          <Button size="sm" variant="default" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium" onClick={async () => {
-            try {
-              const r = await pipelines.publish(pipelineId)
-              say(`Published v${r.version}`); reload()
-            } catch (e) { fail(e) }
-          }}>
-            Publish
+          <Button
+            size="sm"
+            variant="default"
+            className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium gap-1.5 min-w-[76px]"
+            onClick={handlePublish}
+            disabled={isPublishing}
+          >
+            {isPublishing ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
+                Publishing...
+              </>
+            ) : (
+              "Publish"
+            )}
           </Button>
-          <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground" onClick={async () => {
-            try {
-              const r = await pipelines.validate(pipelineId)
-              if (r.valid) say("Pipeline is valid")
-              else fail(r.errors.join("; "))
-            } catch (e) { fail(e) }
-          }}>
-            Validate
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 text-xs text-muted-foreground gap-1.5 min-w-[72px]"
+            onClick={handleValidate}
+            disabled={isValidating}
+          >
+            {isValidating ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Validating...
+              </>
+            ) : (
+              "Validate"
+            )}
           </Button>
-          <Button size="sm" variant="ghost" className="h-8 text-xs text-destructive hover:bg-destructive/10" onClick={removePipeline}>
-            Delete
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 text-xs text-destructive hover:bg-destructive/10 gap-1.5 min-w-[64px]"
+            onClick={removePipeline}
+            disabled={isDeleting}
+          >
+            {isDeleting ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-destructive" />
+                Deleting...
+              </>
+            ) : (
+              "Delete"
+            )}
           </Button>
           <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground" onClick={onLogout}>
             Logout
@@ -1263,9 +1391,11 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-6 text-[10px] text-destructive hover:bg-destructive/10"
-                    onClick={() => runs.cancel(activeRun.id).catch(fail)}
+                    className="h-6 text-[10px] text-destructive hover:bg-destructive/10 gap-1"
+                    onClick={() => handleCancelRun(activeRun.id)}
+                    disabled={isCancellingRun}
                   >
+                    {isCancellingRun && <Loader2 className="h-3 w-3 animate-spin" />}
                     Cancel Run
                   </Button>
                 )}
@@ -1558,8 +1688,21 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
 
                   <div className="flex items-center gap-2">
                     {activeRun.status < 2 && (
-                      <Button size="sm" variant="outline" className="text-destructive h-8 text-xs" onClick={() => runs.cancel(activeRun.id).then(reload).catch(fail)}>
-                        Cancel Run
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive h-8 text-xs gap-1.5"
+                        onClick={() => handleCancelRun(activeRun.id)}
+                        disabled={isCancellingRun}
+                      >
+                        {isCancellingRun ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Cancelling...
+                          </>
+                        ) : (
+                          "Cancel Run"
+                        )}
                       </Button>
                     )}
                   </div>

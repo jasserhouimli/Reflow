@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { X } from "lucide-react"
+import { X, Loader2 } from "lucide-react"
 
 interface Props {
   isOpen: boolean
@@ -104,8 +104,15 @@ export function WebhookDialog({ isOpen, onClose, onCreate }: Props) {
               <Button type="button" variant="outline" size="sm" onClick={handleClose} disabled={saving}>
                 Cancel
               </Button>
-              <Button type="submit" size="sm" disabled={saving}>
-                {saving ? "Generating..." : "Generate Webhook"}
+              <Button type="submit" size="sm" disabled={saving} className="gap-1.5">
+                {saving ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  "Generate Webhook"
+                )}
               </Button>
             </div>
           </form>

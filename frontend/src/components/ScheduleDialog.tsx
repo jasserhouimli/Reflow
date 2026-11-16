@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { X } from "lucide-react"
+import { X, Loader2 } from "lucide-react"
 import {
   type Frequency,
   COMMON_TIMEZONES,
@@ -283,8 +283,15 @@ export function ScheduleDialog({ isOpen, onClose, onSave }: Props) {
             <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={saving}>
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={saving}>
-              {saving ? "Creating..." : "Save Schedule"}
+            <Button type="submit" size="sm" disabled={saving} className="gap-1.5">
+              {saving ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Schedule"
+              )}
             </Button>
           </div>
         </form>

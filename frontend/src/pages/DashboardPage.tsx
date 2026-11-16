@@ -14,7 +14,8 @@ import {
   LogOut,
   Clock,
   Layers,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from "lucide-react"
 
 interface DashboardPageProps {
@@ -27,6 +28,7 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
   const [list, setList] = useState<Pipeline[]>([])
   const [newName, setNewName] = useState("")
   const [creating, setCreating] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
   const [query, setQuery] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -38,7 +40,8 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
   }, [])
 
   const create = async () => {
-    if (!newName.trim()) return
+    if (!newName.trim() || isCreating) return
+    setIsCreating(true)
     try {
       const id = await pipelines.create({ name: newName.trim() })
       setList(prev => [{ id, name: newName.trim(), status: 0, currentVersion: 0, updatedAt: new Date().toISOString() }, ...prev])
@@ -47,6 +50,8 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
       onSelectPipeline(id)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Create failed")
+    } finally {
+      setIsCreating(false)
     }
   }
 
@@ -125,8 +130,17 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
               disabled={busy}
               className="h-8 text-xs gap-1.5"
             >
-              <Play className="h-3.5 w-3.5 text-emerald-600" />
-              {busy ? "Deploying..." : "Try Sample"}
+              {busy ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600" />
+                  Deploying...
+                </>
+              ) : (
+                <>
+                  <Play className="h-3.5 w-3.5 text-emerald-600" />
+                  Try Sample
+                </>
+              )}
             </Button>
             <Button
               variant="outline"
@@ -162,8 +176,15 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
               }}
               className="h-8 text-xs flex-1"
             />
-            <Button size="sm" className="h-8 text-xs" onClick={create} disabled={!newName.trim()}>
-              Create & Open
+            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={create} disabled={!newName.trim() || isCreating}>
+              {isCreating ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create & Open"
+              )}
             </Button>
             <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setCreating(false)}>
               Cancel
