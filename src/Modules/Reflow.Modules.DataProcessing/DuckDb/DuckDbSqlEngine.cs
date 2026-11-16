@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+using System.Globalization;
 using DuckDB.NET.Data;
 using Reflow.Modules.DataProcessing.Abstractions;
 
@@ -7,26 +7,6 @@ namespace Reflow.Modules.DataProcessing.DuckDb;
 public sealed class DuckDbSqlEngine : ISqlEngine
 {
     private const int InsertBatchRows = 500;
-
-    private static readonly Regex UncastAggregationRegex = new(
-        @"\b(?<fn>sum|avg)\s*\(\s*(?!(?:cast|try_cast)\b)(?:(?<dist>distinct)\s+)?(?<col>[a-zA-Z_][a-zA-Z0-9_\.]*)\s*\)",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
-        TimeSpan.FromMilliseconds(200));
-
-    private static readonly Regex UncastStrftimeFormatFirstRegex = new(
-        @"\b(?<fn>strftime)\s*\(\s*(?<fmt>'[^']*')\s*,\s*(?!(?:cast|try_cast)\b)(?<col>[a-zA-Z_][a-zA-Z0-9_\.]*)\s*\)",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
-        TimeSpan.FromMilliseconds(200));
-
-    private static readonly Regex UncastStrftimeColFirstRegex = new(
-        @"\b(?<fn>strftime)\s*\(\s*(?!(?:cast|try_cast)\b)(?<col>[a-zA-Z_][a-zA-Z0-9_\.]*)\s*,\s*(?<fmt>'[^']*')\s*\)",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
-        TimeSpan.FromMilliseconds(200));
-
-    private static readonly Regex UncastDatePartRegex = new(
-        @"\b(?<fn>date_trunc|date_part)\s*\(\s*(?<part>'[^']*')\s*,\s*(?!(?:cast|try_cast)\b)(?<col>[a-zA-Z_][a-zA-Z0-9_\.]*)\s*\)",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
-        TimeSpan.FromMilliseconds(200));
 
     public Frame Query(IReadOnlyList<(string Name, Frame Frame)> tables, string sql)
     {
@@ -37,15 +17,18 @@ public sealed class DuckDbSqlEngine : ISqlEngine
 
         try
         {
-            return ExecuteQuery(tables, sql);
+            // Materialize tables with inferred native types (BIGINT, DOUBLE, TIMESTAMP, VARCHAR)
+            return ExecuteQuery(tables, sql, typed: true);
         }
-        catch (Exception ex) when (IsBinderTypeMismatch(ex) && TryAutoFixVarcharQueries(sql, out var rewrittenSql))
+        catch (DuckDBException ex) when (IsTypeConversionMismatch(ex))
         {
-            return ExecuteQuery(tables, rewrittenSql);
+            // If a query explicitly compares numeric columns against non-numeric strings
+            // (e.g. WHERE age = 'Ada'), fall back to untyped VARCHAR schema.
+            return ExecuteQuery(tables, sql, typed: false);
         }
     }
 
-    private static Frame ExecuteQuery(IReadOnlyList<(string Name, Frame Frame)> tables, string sql)
+    private static Frame ExecuteQuery(IReadOnlyList<(string Name, Frame Frame)> tables, string sql, bool typed)
     {
         using var connection = new DuckDBConnection("Data Source=:memory:");
         connection.Open();
@@ -57,7 +40,7 @@ public sealed class DuckDbSqlEngine : ISqlEngine
         }
 
         foreach (var (name, frame) in tables)
-            LoadTable(connection, SanitizeName(name), frame);
+            LoadTable(connection, SanitizeName(name), frame, typed);
 
         using var query = connection.CreateCommand();
         query.CommandText = sql;
@@ -79,70 +62,19 @@ public sealed class DuckDbSqlEngine : ISqlEngine
         return result;
     }
 
-    private static bool IsBinderTypeMismatch(Exception ex) =>
-        ex.Message.Contains("Binder Error", StringComparison.OrdinalIgnoreCase)
-        || ex.Message.Contains("No function matches the given name and argument types", StringComparison.OrdinalIgnoreCase)
-        || ex.Message.Contains("Could not choose a best candidate function for the function call", StringComparison.OrdinalIgnoreCase);
+    private static bool IsTypeConversionMismatch(DuckDBException ex) =>
+        ex.Message.Contains("Conversion Error", StringComparison.OrdinalIgnoreCase)
+        || ex.Message.Contains("Could not convert string", StringComparison.OrdinalIgnoreCase);
 
-    private static bool TryAutoFixVarcharQueries(string sql, out string rewrittenSql)
-    {
-        var current = sql;
-
-        if (UncastAggregationRegex.IsMatch(current))
-        {
-            current = UncastAggregationRegex.Replace(current, match =>
-            {
-                var fn = match.Groups["fn"].Value;
-                var dist = match.Groups["dist"].Success ? "DISTINCT " : "";
-                var col = match.Groups["col"].Value;
-                return $"{fn}({dist}TRY_CAST({col} AS DOUBLE))";
-            });
-        }
-
-        if (UncastStrftimeFormatFirstRegex.IsMatch(current))
-        {
-            current = UncastStrftimeFormatFirstRegex.Replace(current, match =>
-            {
-                var fn = match.Groups["fn"].Value;
-                var fmt = match.Groups["fmt"].Value;
-                var col = match.Groups["col"].Value;
-                return $"{fn}({fmt}, TRY_CAST({col} AS TIMESTAMP))";
-            });
-        }
-
-        if (UncastStrftimeColFirstRegex.IsMatch(current))
-        {
-            current = UncastStrftimeColFirstRegex.Replace(current, match =>
-            {
-                var fn = match.Groups["fn"].Value;
-                var col = match.Groups["col"].Value;
-                var fmt = match.Groups["fmt"].Value;
-                return $"{fn}(TRY_CAST({col} AS TIMESTAMP), {fmt})";
-            });
-        }
-
-        if (UncastDatePartRegex.IsMatch(current))
-        {
-            current = UncastDatePartRegex.Replace(current, match =>
-            {
-                var fn = match.Groups["fn"].Value;
-                var part = match.Groups["part"].Value;
-                var col = match.Groups["col"].Value;
-                return $"{fn}({part}, TRY_CAST({col} AS TIMESTAMP))";
-            });
-        }
-
-        rewrittenSql = current;
-        return !string.Equals(sql, rewrittenSql, StringComparison.Ordinal);
-    }
-
-    private static void LoadTable(DuckDBConnection connection, string name, Frame frame)
+    private static void LoadTable(DuckDBConnection connection, string name, Frame frame, bool typed)
     {
         foreach (var column in frame.Columns)
             ValidateIdentifier(column);
 
+        var columnTypes = typed ? InferColumnTypes(frame) : Enumerable.Repeat("VARCHAR", frame.Columns.Count).ToArray();
+
         using var create = connection.CreateCommand();
-        var cols = string.Join(", ", frame.Columns.Select(c => $"\"{c.Replace("\"", "\"\"")}\" VARCHAR"));
+        var cols = string.Join(", ", frame.Columns.Select((c, i) => $"\"{c.Replace("\"", "\"\"")}\" {columnTypes[i]}"));
         create.CommandText = $"CREATE TABLE \"{name}\" ({cols})";
         create.ExecuteNonQuery();
 
@@ -165,7 +97,7 @@ public sealed class DuckDbSqlEngine : ISqlEngine
                         sb.Append(", ");
                     sb.Append('?');
                     var cell = c < rows[r].Count ? rows[r][c] : null;
-                    insert.Parameters.Add(new DuckDBParameter((object?)cell ?? DBNull.Value));
+                    insert.Parameters.Add(new DuckDBParameter(ConvertValue(cell, columnTypes[c])));
                 }
                 sb.Append(')');
             }
@@ -174,19 +106,100 @@ public sealed class DuckDbSqlEngine : ISqlEngine
         }
     }
 
+    private static IReadOnlyList<string> InferColumnTypes(Frame frame)
+    {
+        var types = new string[frame.Columns.Count];
+        for (var col = 0; col < frame.Columns.Count; col++)
+            types[col] = InferType(frame.Rows, col);
+        return types;
+    }
+
+    private static string InferType(IReadOnlyList<List<string?>> rows, int colIndex)
+    {
+        var nonNullCount = 0;
+        var isBool = true;
+        var isLong = true;
+        var isDouble = true;
+        var isTimestamp = true;
+
+        foreach (var row in rows)
+        {
+            if (colIndex >= row.Count)
+                continue;
+
+            var val = row[colIndex];
+            if (string.IsNullOrWhiteSpace(val))
+                continue;
+
+            val = val.Trim();
+            nonNullCount++;
+
+            if (isBool && !bool.TryParse(val, out _))
+                isBool = false;
+
+            if (isLong && !long.TryParse(val, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+                isLong = false;
+
+            if (isDouble && !double.TryParse(val, NumberStyles.Float, CultureInfo.InvariantCulture, out _))
+                isDouble = false;
+
+            if (isTimestamp && !(LooksLikeDate(val) && DateTime.TryParse(val, CultureInfo.InvariantCulture, DateTimeStyles.None, out _)))
+                isTimestamp = false;
+
+            if (!isBool && !isLong && !isDouble && !isTimestamp)
+                return "VARCHAR";
+        }
+
+        if (nonNullCount == 0)
+            return "VARCHAR";
+        if (isBool)
+            return "BOOLEAN";
+        if (isLong)
+            return "BIGINT";
+        if (isDouble)
+            return "DOUBLE";
+        if (isTimestamp)
+            return "TIMESTAMP";
+
+        return "VARCHAR";
+    }
+
+    private static bool LooksLikeDate(string s) =>
+        s.Length >= 8 && (s.Contains('-') || s.Contains('/') || s.Contains('T') || s.Contains(':'));
+
+    private static object ConvertValue(string? cell, string duckDbType)
+    {
+        if (string.IsNullOrWhiteSpace(cell))
+            return DBNull.Value;
+
+        var trimmed = cell.Trim();
+        return duckDbType switch
+        {
+            "BIGINT" when long.TryParse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v) => v,
+            "DOUBLE" when double.TryParse(trimmed, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) => v,
+            "BOOLEAN" when bool.TryParse(trimmed, out var v) => v,
+            "TIMESTAMP" when DateTime.TryParse(trimmed, CultureInfo.InvariantCulture, DateTimeStyles.None, out var v) => v,
+            _ => duckDbType == "VARCHAR" ? cell : DBNull.Value,
+        };
+    }
+
     private static string SanitizeName(string name)
     {
         var clean = new string(name.Select(c => char.IsLetterOrDigit(c) || c == '_' ? c : '_').ToArray());
         if (string.IsNullOrEmpty(clean))
-            throw new InvalidOperationException("Table name is required");
+            return "input";
         if (char.IsDigit(clean[0]))
             clean = "t_" + clean;
-        return clean;
+        return clean.ToLowerInvariant();
     }
 
-    private static void ValidateIdentifier(string column)
+    private static void ValidateIdentifier(string name)
     {
-        if (string.IsNullOrWhiteSpace(column))
-            throw new InvalidOperationException("Column names must not be empty");
+        if (string.IsNullOrWhiteSpace(name))
+            throw new InvalidOperationException("Column name cannot be empty");
+        if (name.Contains('\0'))
+            throw new InvalidOperationException("Column name cannot contain null characters");
+        if (name.Length > 128)
+            throw new InvalidOperationException($"Column name '{name}' exceeds maximum length of 128 characters");
     }
 }

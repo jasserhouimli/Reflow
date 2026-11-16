@@ -43,10 +43,7 @@ public sealed class PromptBuilder(NodeTypeRegistry registry, IOptions<AiOptions>
         builder.AppendLine("  * WEBHOOK / API / PAYLOADS: If the user mentions webhook, API, HTTP, payload, real-time trigger, or Postman testing, use 'trigger.payload' as the source node.");
         builder.AppendLine("  * UPLOADED FILES: Use 'file.read' ONLY when the user explicitly asks to read an existing uploaded file AND that file is listed under AVAILABLE FILES below (match by exact fileId). NEVER invent a fileId. If AVAILABLE FILES is empty or has no matching file, NEVER use 'file.read'.");
         builder.AppendLine("  * DEFAULT SOURCE: In all other cases (general pipelines, SQL analytics, aggregations, transformations, filtering, sorting, joins, sample/demo pipelines, or when no matching uploaded file exists), ALWAYS use 'csv.read' with realistic inline sample data in 'csvText' (include a header line and 3-5 rows e.g. \"id,category,amount,date\\n1,Electronics,120.50,2025-01-15\\n2,Clothing,45.00,2025-01-16\"). This makes the generated workflow self-contained and immediately runnable.");
-        builder.AppendLine("- In data.sql queries (CRITICAL TYPE CASTING):");
-        builder.AppendLine("  * Upstream table columns are stored as VARCHAR.");
-        builder.AppendLine("  * Numeric aggregations & math: ALWAYS use TRY_CAST(col AS DOUBLE) (e.g. SUM(TRY_CAST(amount AS DOUBLE)) as total_sales, AVG(TRY_CAST(price AS DOUBLE))).");
-        builder.AppendLine("  * Date/Time functions (strftime, date_trunc): DuckDB requires TIMESTAMP arguments. ALWAYS cast date columns: strftime('%Y-%m', TRY_CAST(date AS TIMESTAMP)) or date_trunc('month', TRY_CAST(date AS TIMESTAMP)). NEVER pass raw string column names directly to strftime without TRY_CAST.");
+        builder.AppendLine("- In data.sql queries: Write standard DuckDB SQL (e.g. SELECT strftime('%Y-%m', date) as month, SUM(amount) as total FROM input GROUP BY 1). Input table schemas are automatically typed.");
         builder.AppendLine();
         builder.AppendLine("NODE CATALOG");
 
