@@ -7,7 +7,8 @@ import {
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import {
-  pipelines, runs, triggers, nodeTypes, versions, artifactUrl, files,
+  pipelines, runs, triggers, nodeTypes, versions, files,
+  downloadArtifact, exportRowsToFile,
   RUN_STATUSES, TASK_STATUSES,
   type PipelineDetail, type PipelineEdge,
   type NodeDefinition, type PipelineRun, type TaskRun, type RunLog, type RunSnapshot, type TriggerItem,
@@ -47,6 +48,7 @@ import {
   Trash2,
   Loader2,
   FileEdit,
+  Download,
 } from "lucide-react"
 
 interface Props {
@@ -970,6 +972,33 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
     } catch { return null }
   })() : null
 
+  const handleDownloadTaskOutput = async (task: TaskDetail, format: "csv" | "json") => {
+    if (runId && task.nodeType === "data.output") {
+      try {
+        await downloadArtifact(runId, task.nodeId)
+        say(`Downloaded artifact for ${task.nodeId}`)
+        return
+      } catch (err) {
+        console.warn("Server artifact download failed, falling back to client export:", err)
+      }
+    }
+
+    if (task.outputJson) {
+      try {
+        const rows = JSON.parse(task.outputJson) as Array<Record<string, unknown>>
+        if (Array.isArray(rows) && rows.length > 0) {
+          exportRowsToFile(rows, `${task.nodeId}_output.${format}`, format)
+          say(`Downloaded ${task.nodeId} as ${format.toUpperCase()}`)
+          return
+        }
+      } catch (err) {
+        console.error("Failed to parse output JSON:", err)
+      }
+    }
+
+    say("No output rows available to download")
+  }
+
   if (!detail) {
     return (
       <div className="h-screen flex flex-col bg-background text-foreground">
@@ -1456,9 +1485,31 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                           <span className="font-semibold text-foreground">
                             Previewing node: <code className="font-mono text-primary">{taskDetail.nodeId}</code>
                           </span>
-                          <span className="text-muted-foreground font-mono text-[11px]">
-                            Showing {outputPreview.rows.length} of {outputPreview.total} rows
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-muted-foreground font-mono text-[11px] mr-1">
+                              Showing {outputPreview.rows.length} of {outputPreview.total} rows
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 px-2 text-[11px] flex items-center gap-1 font-mono hover:bg-muted"
+                              onClick={() => void handleDownloadTaskOutput(taskDetail, "csv")}
+                              title="Download node output as CSV"
+                            >
+                              <Download className="h-3 w-3 text-emerald-600" />
+                              <span>CSV</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 px-2 text-[11px] flex items-center gap-1 font-mono hover:bg-muted"
+                              onClick={() => void handleDownloadTaskOutput(taskDetail, "json")}
+                              title="Download node output as JSON"
+                            >
+                              <Download className="h-3 w-3 text-blue-600" />
+                              <span>JSON</span>
+                            </Button>
+                          </div>
                         </div>
                         <div className="border rounded overflow-auto max-h-52">
                           <table className="text-xs font-mono w-full border-collapse">
@@ -1523,14 +1574,16 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                           <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono">
                             <span>{t.nodeType}</span>
                             {t.nodeType === "data.output" && t.status === 3 && runId && (
-                              <a
-                                onClick={e => e.stopPropagation()}
-                                href={artifactUrl(runId, t.nodeId)}
-                                download
-                                className="text-emerald-600 hover:underline"
+                              <button
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  void downloadArtifact(runId, t.nodeId)
+                                }}
+                                className="text-emerald-600 hover:underline cursor-pointer flex items-center gap-1 font-mono text-[11px]"
                               >
-                                download
-                              </a>
+                                <Download className="h-3 w-3" />
+                                <span>download</span>
+                              </button>
                             )}
                           </div>
                           {t.error && <p className="text-[10px] text-destructive truncate">{t.error}</p>}
@@ -1760,14 +1813,16 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                                 </button>
                               )}
                               {t.nodeType === "data.output" && t.status === 3 && runId && (
-                                <a
-                                  onClick={e => e.stopPropagation()}
-                                  href={artifactUrl(runId, t.nodeId)}
-                                  download
-                                  className="text-emerald-600 hover:underline"
+                                <button
+                                  onClick={e => {
+                                    e.stopPropagation()
+                                    void downloadArtifact(runId, t.nodeId)
+                                  }}
+                                  className="text-emerald-600 hover:underline cursor-pointer flex items-center gap-1 font-mono text-[11px]"
                                 >
-                                  download
-                                </a>
+                                  <Download className="h-3 w-3" />
+                                  <span>download</span>
+                                </button>
                               )}
                             </div>
                           </div>
@@ -1792,11 +1847,33 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                           </span>
                         )}
                       </div>
-                      {outputPreview && (
-                        <span className="text-[11px] text-muted-foreground font-mono">
-                          Showing {outputPreview.rows.length} of {outputPreview.total} rows
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {outputPreview && (
+                          <span className="text-[11px] text-muted-foreground font-mono mr-1">
+                            Showing {outputPreview.rows.length} of {outputPreview.total} rows
+                          </span>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-[11px] flex items-center gap-1 font-mono hover:bg-muted"
+                          onClick={() => void handleDownloadTaskOutput(taskDetail, "csv")}
+                          title="Download as CSV"
+                        >
+                          <Download className="h-3 w-3 text-emerald-600" />
+                          <span>CSV</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-[11px] flex items-center gap-1 font-mono hover:bg-muted"
+                          onClick={() => void handleDownloadTaskOutput(taskDetail, "json")}
+                          title="Download as JSON"
+                        >
+                          <Download className="h-3 w-3 text-blue-600" />
+                          <span>JSON</span>
+                        </Button>
+                      </div>
                     </div>
 
                     {attempts.length > 1 && (

@@ -290,5 +290,77 @@ export const RUN_STATUSES = ['Queued', 'Running', 'Completed', 'Failed', 'Cancel
 export const TASK_STATUSES = ['Pending', 'Ready', 'Running', 'Completed', 'Failed', 'RetryScheduled', 'Cancelled', 'Skipped'];
 export const PIPELINE_STATUSES = ['Draft', 'Published', 'Archived'];
 
-export const artifactUrl = (runId: string, nodeId: string) =>
-  `${API_BASE}/runs/${runId}/artifacts/${encodeURIComponent(nodeId)}`;
+export const artifactUrl = (runId: string, nodeId: string) => {
+  const token = getAuthToken();
+  const base = `${API_BASE}/runs/${runId}/artifacts/${encodeURIComponent(nodeId)}`;
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+};
+
+export async function downloadArtifact(runId: string, nodeId: string, fallbackFileName?: string): Promise<void> {
+  const token = getAuthToken();
+  const res = await fetch(artifactUrl(runId, nodeId), {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Download failed: HTTP ${res.status}`);
+  }
+
+  const blob = await res.blob();
+  const disposition = res.headers.get('content-disposition');
+  let filename = fallbackFileName || `${nodeId}.csv`;
+  if (disposition && disposition.includes('filename=')) {
+    const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+    if (match && match[1]) {
+      filename = match[1].replace(/['"]/g, '').trim();
+    }
+  }
+
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export function exportRowsToFile(rows: Array<Record<string, unknown>>, filename: string, format: 'csv' | 'json') {
+  if (!rows || rows.length === 0) return;
+
+  let content: string;
+  let mime: string;
+
+  if (format === 'json') {
+    content = JSON.stringify(rows, null, 2);
+    mime = 'application/json';
+  } else {
+    const headers = Object.keys(rows[0]);
+    const escapeCsv = (val: unknown) => {
+      if (val === null || val === undefined) return '';
+      const s = String(val);
+      if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
+    const csvLines = [
+      headers.map(escapeCsv).join(','),
+      ...rows.map(r => headers.map(h => escapeCsv(r[h])).join(',')),
+    ];
+    content = csvLines.join('\n');
+    mime = 'text/csv';
+  }
+
+  const blob = new Blob([content], { type: mime });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename.endsWith(`.${format}`) ? filename : `${filename}.${format}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}

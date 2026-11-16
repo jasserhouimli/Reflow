@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Reflow.Infrastructure.Auth;
+using Reflow.Modules.DataProcessing.Abstractions;
 using Reflow.Modules.DataProcessing.Artifacts;
+using Reflow.Modules.DataProcessing.InMemory;
 using Reflow.Modules.PipelineExecution.Persistence;
 
 namespace Reflow.Modules.PipelineExecution.Features.RunTasks;
@@ -111,6 +113,7 @@ public static class RunTasksEndpoints
             string nodeId,
             PipelineExecutionDbContext db,
             IDataArtifactStore artifacts,
+            IDataWriter writer,
             HttpContext http,
             CancellationToken ct) =>
         {
@@ -118,12 +121,53 @@ public static class RunTasksEndpoints
                 return Results.Json(new { error = "Unauthorized" }, statusCode: 401);
             if (!await OwnsRun(db, id, ownerId, ct))
                 return Results.Json(new { error = "Run not found" }, statusCode: 404);
+
             var file = await artifacts.LoadAsync(id, nodeId, ct);
-            if (file is null)
+            if (file is not null)
+            {
+                return Results.File(
+                    System.Text.Encoding.UTF8.GetBytes(file.Value.Content),
+                    file.Value.ContentType, file.Value.FileName);
+            }
+
+            // Fallback: If artifact file is missing from disk/storage, generate from database task output
+            var task = await db.TaskRuns.AsNoTracking()
+                .FirstOrDefaultAsync(t => t.RunId == id && t.NodeId == nodeId, ct);
+            if (task is null || string.IsNullOrWhiteSpace(task.OutputJson))
                 return Results.Json(new { error = "Artifact not found" }, statusCode: 404);
+
+            var format = "csv";
+            var fileName = $"{nodeId}.csv";
+            if (!string.IsNullOrWhiteSpace(task.ConfigJson))
+            {
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(task.ConfigJson);
+                    if (doc.RootElement.TryGetProperty("format", out var f) && f.GetString() == "json")
+                    {
+                        format = "json";
+                        fileName = $"{nodeId}.json";
+                    }
+                    if (doc.RootElement.TryGetProperty("fileName", out var fn) && !string.IsNullOrWhiteSpace(fn.GetString()))
+                    {
+                        fileName = fn.GetString()!;
+                    }
+                }
+                catch { }
+            }
+
+            if (format == "json")
+            {
+                return Results.File(
+                    System.Text.Encoding.UTF8.GetBytes(task.OutputJson),
+                    "application/json", fileName);
+            }
+
+            var frame = JsonCodec.FromJson(task.OutputJson, null);
+            var csv = writer.ToCsv(frame, ',', true);
             return Results.File(
-                System.Text.Encoding.UTF8.GetBytes(file.Value.Content),
-                file.Value.ContentType, file.Value.FileName);
+                System.Text.Encoding.UTF8.GetBytes(csv),
+                "text/csv", fileName);
         }).RequireAuthorization().WithName("DownloadArtifact");
     }
 }
