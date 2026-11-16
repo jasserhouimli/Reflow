@@ -32,6 +32,19 @@ import {
   ArrowLeft,
   Check,
   X,
+  Search,
+  GripVertical,
+  Database,
+  FileText,
+  Layers,
+  Filter,
+  ArrowUpDown,
+  GitMerge,
+  Code2,
+  Sigma,
+  HardDrive,
+  LayoutGrid,
+  Trash2,
 } from "lucide-react"
 
 interface Props {
@@ -293,11 +306,50 @@ function RawJson({ configJson, onChange }: { configJson: string; onChange: (j: s
   return <textarea className="w-full text-xs font-mono border rounded p-2" rows={8} value={configJson} onChange={e => onChange(e.target.value)} />
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  Sources: "bg-emerald-100 text-emerald-700",
-  Transform: "bg-blue-100 text-blue-700",
-  Analysis: "bg-violet-100 text-violet-700",
-  Sinks: "bg-amber-100 text-amber-700",
+function getNodeIcon(type: string, category?: string) {
+  switch (type) {
+    case "file.read":
+    case "csv.read":
+    case "json.read":
+      return <FileText className="h-3.5 w-3.5" />
+    case "trigger.payload":
+      return <Database className="h-3.5 w-3.5" />
+    case "filter":
+      return <Filter className="h-3.5 w-3.5" />
+    case "sort":
+      return <ArrowUpDown className="h-3.5 w-3.5" />
+    case "join":
+      return <GitMerge className="h-3.5 w-3.5" />
+    case "transform":
+      return <Layers className="h-3.5 w-3.5" />
+    case "data.sql":
+      return <Code2 className="h-3.5 w-3.5" />
+    case "aggregate":
+      return <Sigma className="h-3.5 w-3.5" />
+    case "data.output":
+      return <HardDrive className="h-3.5 w-3.5" />
+    default:
+      if (category === "Sources") return <Database className="h-3.5 w-3.5" />
+      if (category === "Transform") return <Layers className="h-3.5 w-3.5" />
+      if (category === "Analysis") return <Code2 className="h-3.5 w-3.5" />
+      if (category === "Sinks") return <HardDrive className="h-3.5 w-3.5" />
+      return <Layers className="h-3.5 w-3.5" />
+  }
+}
+
+function getCategoryIcon(cat: string) {
+  switch (cat) {
+    case "Sources":
+      return <Database className="h-3 w-3" />
+    case "Transform":
+      return <Layers className="h-3 w-3" />
+    case "Analysis":
+      return <Code2 className="h-3 w-3" />
+    case "Sinks":
+      return <HardDrive className="h-3 w-3" />
+    default:
+      return <Layers className="h-3 w-3" />
+  }
 }
 
 function PipelineNodeView({ id, data, selected }: NodeProps) {
@@ -314,42 +366,42 @@ function PipelineNodeView({ id, data, selected }: NodeProps) {
     isQueued ? "border-amber-500/60" :
     selected ? "ring-2 ring-primary border-primary" : "border-border"
 
-  const badgeStyle =
-    d.category && CATEGORY_COLORS[d.category]
-      ? CATEGORY_COLORS[d.category]
-      : "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-
   return (
     <div className={`rounded-lg border bg-card px-3 py-2.5 shadow-2xs min-w-44 transition-all ${statusBorder}`}>
       <Handle type="target" position={Position.Left} className="!w-2.5 !h-2.5 !bg-muted-foreground/60" />
       <div className="flex items-center justify-between gap-2">
-        <div className="text-xs font-semibold truncate text-foreground">{d.label}</div>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-muted-foreground shrink-0">
+            {getNodeIcon(d.nodeType, d.category)}
+          </span>
+          <div className="text-xs font-semibold truncate text-foreground">{d.label}</div>
+        </div>
         {isRunning && (
-          <span className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-mono font-medium animate-pulse">
+          <span className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-mono font-medium animate-pulse shrink-0">
             <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-ping" />
             running
           </span>
         )}
         {isSuccess && (
-          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 font-medium">
+          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 font-medium shrink-0">
             <Check className="h-3 w-3" />
             ok
           </span>
         )}
         {isFailed && (
-          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400 font-medium">
+          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400 font-medium shrink-0">
             <X className="h-3 w-3" />
             error
           </span>
         )}
         {isQueued && (
-          <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 font-medium">
+          <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 font-medium shrink-0">
             queued
           </span>
         )}
       </div>
-      <div className="flex items-center justify-between gap-1.5 mt-1.5">
-        <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono inline-block ${badgeStyle}`}>
+      <div className="flex items-center justify-between gap-1.5 mt-2">
+        <span className="text-[9px] px-1.5 py-0.5 rounded font-mono font-medium inline-block bg-muted/80 text-muted-foreground border border-border/40">
           {d.nodeType}
         </span>
         <span className="text-[10px] font-mono text-muted-foreground truncate" title={`Table name: ${id}`}>
@@ -1010,43 +1062,111 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
       {/* 1. Canvas View */}
       <div className={activeView === "canvas" ? "flex flex-1 min-h-0 relative" : "hidden"}>
         {/* Left: Palette */}
-        <div className="w-56 border-r p-3 space-y-2.5 overflow-auto bg-card/30 shrink-0">
-          <div className="space-y-1">
+        <div className="w-64 border-r p-3 space-y-2.5 overflow-auto bg-card/30 shrink-0 flex flex-col">
+          <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Components</span>
-            <Input className="h-8 text-xs" placeholder="Search nodes…" value={paletteQuery} onChange={e => setPaletteQuery(e.target.value)} />
+            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-muted text-muted-foreground font-medium">
+              {defs.length}
+            </span>
           </div>
 
-          <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              className="h-8 pl-8 pr-7 text-xs bg-background/50 focus:bg-background"
+              placeholder="Search nodes…"
+              value={paletteQuery}
+              onChange={e => setPaletteQuery(e.target.value)}
+            />
+            {paletteQuery && (
+              <button
+                type="button"
+                onClick={() => setPaletteQuery("")}
+                className="absolute right-2 top-2 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+                title="Clear search"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-3 flex-1 overflow-auto">
             {paletteGroups.map(([cat, items]) => (
-              <div key={cat} className="space-y-1">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground pt-1">{cat}</p>
-                {items.map(d => (
-                  <div key={d.type} draggable
-                    onDragStart={e => e.dataTransfer.setData("application/reflow-nodetype", d.type)}
-                    title={d.description}
-                    className="border rounded-md p-2 cursor-grab hover:bg-accent/60 transition-colors flex items-center gap-2 bg-card shadow-2xs">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${(CATEGORY_COLORS[d.category] ?? "bg-gray-300").split(" ")[0]}`} />
-                    <div className="min-w-0">
-                      <div className="text-xs font-medium truncate">{d.displayName}</div>
-                      <div className="text-[10px] font-mono text-muted-foreground truncate">{d.type}</div>
-                    </div>
+              <div key={cat} className="space-y-1.5">
+                <div className="flex items-center justify-between px-0.5 pt-1">
+                  <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {getCategoryIcon(cat)}
+                    <span>{cat}</span>
                   </div>
-                ))}
+                  <span className="text-[10px] font-mono text-muted-foreground/70">
+                    {items.length}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {items.map(d => (
+                    <div
+                      key={d.type}
+                      draggable
+                      onDragStart={e => e.dataTransfer.setData("application/reflow-nodetype", d.type)}
+                      title={d.description}
+                      className="group relative flex items-center justify-between p-2 rounded-lg border border-border/50 bg-card hover:bg-accent/40 hover:border-foreground/25 hover:shadow-2xs transition-all cursor-grab active:cursor-grabbing"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-6 h-6 rounded bg-muted/60 border border-border/40 flex items-center justify-center text-muted-foreground group-hover:text-foreground group-hover:bg-muted shrink-0 transition-colors">
+                          {getNodeIcon(d.type, d.category)}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-medium text-foreground truncate">{d.displayName}</div>
+                          <div className="text-[10px] font-mono text-muted-foreground truncate">{d.type}</div>
+                        </div>
+                      </div>
+                      <GripVertical className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/70 transition-colors shrink-0" />
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
-            {paletteGroups.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No components match.</p>}
+            {paletteGroups.length === 0 && (
+              <div className="p-4 text-center text-xs text-muted-foreground space-y-1">
+                <p>No components match.</p>
+                <button
+                  type="button"
+                  onClick={() => setPaletteQuery("")}
+                  className="text-[11px] text-primary hover:underline"
+                >
+                  Clear search
+                </button>
+              </div>
+            )}
           </div>
 
-          <div className="pt-2 border-t space-y-1">
-            <Button size="sm" variant="outline" className="w-full text-xs h-7" onClick={autoLayout}>
+          <div className="pt-2 border-t space-y-1 shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full text-xs h-7 text-muted-foreground hover:text-foreground justify-center gap-1.5"
+              onClick={autoLayout}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
               Auto-layout Canvas
             </Button>
             {selectedEdgeId && (
-              <Button size="sm" variant="outline" className="w-full text-destructive text-xs h-7"
-                onClick={() => { setEdges(es => es.filter(e => e.id !== selectedEdgeId)); setSelectedEdgeId(null) }}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full text-destructive hover:bg-destructive/10 text-xs h-7 justify-center gap-1.5"
+                onClick={() => {
+                  setEdges(es => es.filter(e => e.id !== selectedEdgeId))
+                  setSelectedEdgeId(null)
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
                 Delete Selected Edge
               </Button>
             )}
+            <p className="text-[10px] text-center text-muted-foreground/60 pt-0.5">
+              Drag components onto canvas
+            </p>
           </div>
         </div>
 
@@ -1298,7 +1418,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                   <p className="text-sm font-semibold truncate">{(selected.data as unknown as FlowNodeData).label}</p>
                   <p className="text-[10px] font-mono text-muted-foreground truncate">node: {selected.id}</p>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded font-mono font-medium bg-blue-100 text-blue-700 shrink-0">
+                <span className="text-[10px] px-2 py-0.5 rounded font-mono font-medium bg-muted text-muted-foreground border border-border/50 shrink-0">
                   {(selected.data as unknown as FlowNodeData).nodeType}
                 </span>
               </div>
