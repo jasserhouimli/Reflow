@@ -52,6 +52,16 @@ export const auth = {
     }
     return res;
   },
+  googleLogin: async (idToken: string) => {
+    const res = await request<{ accessToken?: string }>('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ idToken }),
+    });
+    if (res?.accessToken) {
+      localStorage.setItem('reflow_token', res.accessToken);
+    }
+    return res;
+  },
   me: () => request<{ id: string; email: string; displayName: string; createdAt: string }>('/auth/me'),
   logout: async () => {
     try {
@@ -163,10 +173,10 @@ export interface GeneratedWorkflowDraft {
 }
 
 export const assistant = {
-  generate: (prompt: string, apiKey?: string | null) =>
+  generate: (prompt: string) =>
     request<GeneratedWorkflowDraft>('/assistant/workflows/generate', {
       method: 'POST',
-      body: JSON.stringify({ prompt, apiKey: apiKey || undefined }),
+      body: JSON.stringify({ prompt }),
     }),
 };
 

@@ -7,7 +7,9 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Npgsql;
+using Google.Apis.Auth;
 using Reflow.Modules.AiAssistant.Abstractions;
+using Reflow.Modules.Identity.Features.GoogleLogin;
 using Reflow.Modules.Identity.Persistence;
 using Reflow.Modules.PipelineExecution.Persistence;
 using Reflow.Modules.Pipelines.Persistence;
@@ -30,6 +32,9 @@ public class ReflowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     // Test stub replacing outbound LLM requests.
     public FakeLanguageModel LanguageModel { get; } = new();
 
+    // Test stub replacing outbound Google token verification.
+    public FakeGoogleTokenValidator GoogleTokenValidator { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("ConnectionStrings:Reflow", TestConnectionString);
@@ -49,6 +54,9 @@ public class ReflowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         {
             services.RemoveAll<ILanguageModel>();
             services.AddSingleton<ILanguageModel>(LanguageModel);
+
+            services.RemoveAll<IGoogleTokenValidator>();
+            services.AddSingleton<IGoogleTokenValidator>(GoogleTokenValidator);
         });
     }
 
@@ -113,4 +121,32 @@ public class ReflowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     }
 
     Task IAsyncLifetime.DisposeAsync() => Task.CompletedTask;
+}
+
+public class FakeGoogleTokenValidator : IGoogleTokenValidator
+{
+    public Func<string, GoogleJsonWebSignature.Payload?>? ValidatorFunc { get; set; }
+
+    public Task<GoogleJsonWebSignature.Payload> ValidateAsync(string idToken, CancellationToken ct = default)
+    {
+        if (ValidatorFunc != null)
+        {
+            var res = ValidatorFunc(idToken);
+            if (res == null) throw new InvalidJwtException("Invalid token in test stub");
+            return Task.FromResult(res);
+        }
+
+        if (idToken == "invalid-token")
+        {
+            throw new InvalidJwtException("Invalid token");
+        }
+
+        return Task.FromResult(new GoogleJsonWebSignature.Payload
+        {
+            Subject = $"google-sub-{idToken}",
+            Email = $"{idToken}@google-user.com",
+            EmailVerified = true,
+            Name = $"Google User {idToken}"
+        });
+    }
 }

@@ -29,13 +29,13 @@ public sealed class OpenAiCompatibleLanguageModel(
             return GenerateLocalMockResponse(userPrompt);
         }
 
-        // Auto-detect Google Gemini API keys (starts with AIzaSy) and route to Gemini OpenAI endpoint
-        var isGemini = effectiveApiKey.StartsWith("AIzaSy");
+        // Auto-detect Google Gemini API keys (starts with AIzaSy or AQ.) and route to Gemini OpenAI endpoint
+        var isGemini = effectiveApiKey.StartsWith("AIzaSy") || effectiveApiKey.StartsWith("AQ.") || settings.BaseUrl.Contains("googleapis.com");
         var baseUrl = isGemini && (settings.BaseUrl.Contains("groq.com") || string.IsNullOrWhiteSpace(settings.BaseUrl))
             ? "https://generativelanguage.googleapis.com/v1beta/openai"
             : settings.BaseUrl;
         var model = isGemini && (settings.Model.Contains("llama") || string.IsNullOrWhiteSpace(settings.Model))
-            ? "gemini-2.5-flash"
+            ? "gemini-3.5-flash"
             : settings.Model;
 
         var endpoint = $"{baseUrl.TrimEnd('/')}/chat/completions";

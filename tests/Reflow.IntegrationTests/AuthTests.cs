@@ -80,4 +80,77 @@ public class AuthTests
 
         Assert.Contains("@test.com", body!.RootElement.GetProperty("email").GetString());
     }
+
+    [Fact]
+    public async Task GoogleLogin_WithValidToken_ReturnsTokensAndCreatesUser()
+    {
+        var client = _factory.CreateClient();
+        var token = $"testuser_{Guid.NewGuid():N}";
+
+        var res = await client.PostAsJsonAsync("/api/v1/auth/google", new
+        {
+            idToken = token
+        });
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var body = await res.Content.ReadFromJsonAsync<System.Text.Json.JsonDocument>();
+        Assert.NotNull(body);
+        var email = body.RootElement.GetProperty("email").GetString();
+        Assert.Equal($"{token}@google-user.com", email);
+        Assert.False(string.IsNullOrEmpty(body.RootElement.GetProperty("accessToken").GetString()));
+    }
+
+    [Fact]
+    public async Task GoogleLogin_WithInvalidToken_Returns401()
+    {
+        var client = _factory.CreateClient();
+
+        var res = await client.PostAsJsonAsync("/api/v1/auth/google", new
+        {
+            idToken = "invalid-token"
+        });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task GoogleLogin_EmptyToken_Returns400()
+    {
+        var client = _factory.CreateClient();
+
+        var res = await client.PostAsJsonAsync("/api/v1/auth/google", new
+        {
+            idToken = ""
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task GoogleLogin_ExistingEmail_LinksAccountSuccessfully()
+    {
+        var client = _factory.CreateClient();
+        var unique = Guid.NewGuid().ToString("N");
+        var email = $"{unique}@google-user.com";
+
+        // Pre-register user with password
+        var regRes = await client.PostAsJsonAsync("/api/v1/auth/register", new
+        {
+            email,
+            password = "Password1234",
+            displayName = "Original User"
+        });
+        regRes.EnsureSuccessStatusCode();
+
+        // Sign in with Google with same email
+        var res = await client.PostAsJsonAsync("/api/v1/auth/google", new
+        {
+            idToken = unique
+        });
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var body = await res.Content.ReadFromJsonAsync<System.Text.Json.JsonDocument>();
+        Assert.NotNull(body);
+        Assert.Equal(email, body.RootElement.GetProperty("email").GetString());
+    }
 }

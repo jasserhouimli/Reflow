@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Reflow.Modules.Identity.Domain;
 using Reflow.Modules.Identity.Features.Register;
 using Reflow.Modules.Identity.Features.Login;
+using Reflow.Modules.Identity.Features.GoogleLogin;
 using Reflow.Modules.Identity.Features.GetUser;
 using Reflow.Modules.Identity.Features.Logout;
 using Reflow.Modules.Identity.Features.RefreshToken;
@@ -40,6 +41,8 @@ public static class IdentityModule
         builder.Services.AddScoped<IdentityDbContext>();
         builder.Services.AddScoped<TokenService>();
 
+        builder.Services.AddScoped<IGoogleTokenValidator, GoogleTokenValidator>();
+        builder.Services.AddScoped<GoogleLoginHandler>();
         builder.Services.AddScoped<RegisterHandler>();
         builder.Services.AddScoped<LoginHandler>();
         builder.Services.AddScoped<GetCurrentUserHandler>();
@@ -51,6 +54,7 @@ public static class IdentityModule
     {
         RegisterEndpoint.Map(app);
         LoginEndpoint.Map(app);
+        GoogleLoginEndpoint.Map(app);
         GetCurrentUserEndpoint.Map(app);
         RefreshTokenEndpoint.Map(app);
         LogoutEndpoint.Map(app);
