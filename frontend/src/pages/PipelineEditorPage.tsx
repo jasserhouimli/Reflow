@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import {
   ReactFlow, ReactFlowProvider, useReactFlow, Background, Controls, MiniMap, Handle, Position,
   applyNodeChanges, applyEdgeChanges, addEdge, MarkerType,
@@ -17,6 +17,7 @@ import { subscribeToRun } from "@/api/realtime"
 import { ScheduleDialog } from "@/components/ScheduleDialog"
 import { WebhookDialog } from "@/components/WebhookDialog"
 import { EditorAiDialog } from "@/components/EditorAiDialog"
+import { SqlEditor, type UpstreamNode } from "@/components/SqlEditor"
 import { cronToHuman } from "@/lib/cronHelper"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -127,10 +128,11 @@ function FileReadConfigForm({ configJson, onChange }: {
   )
 }
 
-function NodeConfigForm({ nodeType, configJson, onChange }: {
+function NodeConfigForm({ nodeType, configJson, onChange, upstreamNodes = [] }: {
   nodeType: string
   configJson: string
   onChange: (json: string) => void
+  upstreamNodes?: UpstreamNode[]
 }) {
   const cfg = parseConfig(configJson)
   if (cfg === null) {
@@ -210,10 +212,13 @@ function NodeConfigForm({ nodeType, configJson, onChange }: {
       )
     case "data.sql":
       return (
-        <div className="space-y-2">
-          <label className="text-xs">Query (tables named after source nodes)
-            <textarea className="w-full text-xs font-mono border rounded p-2" rows={8}
-              value={str("query")} onChange={e => set("query", e.target.value)} /></label>
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-foreground">SQL Query</label>
+          <SqlEditor
+            value={str("query")}
+            onChange={val => set("query", val)}
+            upstreamNodes={upstreamNodes}
+          />
         </div>
       )
     case "aggregate":
@@ -541,6 +546,18 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
     }
     return [...groups.entries()]
   })()
+
+  const upstreamNodes = useMemo(() => {
+    if (!selectedId) return []
+    const incomingSources = new Set(edges.filter(e => e.target === selectedId).map(e => e.source))
+    return nodes
+      .filter(n => incomingSources.has(n.id))
+      .map(n => ({
+        id: n.id,
+        label: (n.data as unknown as FlowNodeData)?.label || n.id,
+        nodeType: (n.data as unknown as FlowNodeData)?.nodeType || "",
+      }))
+  }, [edges, nodes, selectedId])
 
   const paintStatuses = (t: TaskRun[]) => {
     const byNode = new Map(t.map(x => [x.nodeId, x.status] as const))
@@ -1317,6 +1334,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                   nodeType={(selected.data as unknown as FlowNodeData).nodeType}
                   configJson={(selected.data as unknown as FlowNodeData).configJson}
                   onChange={c => patchSelected({ configJson: c })}
+                  upstreamNodes={upstreamNodes}
                 />
               </div>
 
