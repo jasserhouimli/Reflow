@@ -32,9 +32,11 @@ public static class DataProcessingModule
             if (string.Equals(options.Provider, "Supabase", StringComparison.OrdinalIgnoreCase)
                 || (!string.IsNullOrWhiteSpace(options.SupabaseUrl) && !string.IsNullOrWhiteSpace(options.SupabaseKey)))
             {
+                logger.LogInformation("Storage configured with Supabase Storage (Bucket: '{Bucket}', Endpoint: {Url})", options.Bucket, options.SupabaseUrl);
                 return new SupabaseArtifactStore(clientFactory, writer, Options.Create(options), localFallback, logger);
             }
 
+            logger.LogInformation("Storage configured with Local file storage");
             return localFallback;
         });
 
