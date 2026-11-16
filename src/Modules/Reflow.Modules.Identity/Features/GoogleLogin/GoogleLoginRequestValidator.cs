@@ -6,7 +6,8 @@ public class GoogleLoginRequestValidator : AbstractValidator<GoogleLoginRequest>
 {
     public GoogleLoginRequestValidator()
     {
-        RuleFor(x => x.IdToken)
-            .NotEmpty().WithMessage("Google ID token is required.");
+        RuleFor(x => x)
+            .Must(x => !string.IsNullOrWhiteSpace(x.IdToken) || !string.IsNullOrWhiteSpace(x.AccessToken))
+            .WithMessage("Either IdToken or AccessToken is required.");
     }
 }

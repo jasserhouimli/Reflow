@@ -18,19 +18,19 @@ public class GoogleLoginHandler(
         GoogleLoginRequest request,
         CancellationToken ct)
     {
-        GoogleJsonWebSignature.Payload payload;
+        GoogleUserInfo payload;
         try
         {
-            payload = await googleTokenValidator.ValidateAsync(request.IdToken, ct);
+            payload = await googleTokenValidator.ValidateAsync(request, ct);
         }
         catch (InvalidJwtException ex)
         {
-            logger.LogWarning(ex, "Invalid Google ID token supplied.");
+            logger.LogWarning(ex, "Invalid Google token supplied.");
             return Result<LoginResponse>.Failure("Invalid Google token.", 401);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unexpected error validating Google ID token.");
+            logger.LogError(ex, "Unexpected error validating Google token.");
             return Result<LoginResponse>.Failure("Authentication with Google failed.", 401);
         }
 

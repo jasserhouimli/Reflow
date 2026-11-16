@@ -52,10 +52,10 @@ export const auth = {
     }
     return res;
   },
-  googleLogin: async (idToken: string) => {
+  googleLogin: async (data: { idToken?: string; accessToken?: string }) => {
     const res = await request<{ accessToken?: string }>('/auth/google', {
       method: 'POST',
-      body: JSON.stringify({ idToken }),
+      body: JSON.stringify(data),
     });
     if (res?.accessToken) {
       localStorage.setItem('reflow_token', res.accessToken);

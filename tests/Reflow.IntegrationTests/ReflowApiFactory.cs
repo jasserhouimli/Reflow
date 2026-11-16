@@ -125,28 +125,29 @@ public class ReflowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
 public class FakeGoogleTokenValidator : IGoogleTokenValidator
 {
-    public Func<string, GoogleJsonWebSignature.Payload?>? ValidatorFunc { get; set; }
+    public Func<GoogleLoginRequest, GoogleUserInfo?>? ValidatorFunc { get; set; }
 
-    public Task<GoogleJsonWebSignature.Payload> ValidateAsync(string idToken, CancellationToken ct = default)
+    public Task<GoogleUserInfo> ValidateAsync(GoogleLoginRequest request, CancellationToken ct = default)
     {
         if (ValidatorFunc != null)
         {
-            var res = ValidatorFunc(idToken);
+            var res = ValidatorFunc(request);
             if (res == null) throw new InvalidJwtException("Invalid token in test stub");
             return Task.FromResult(res);
         }
 
-        if (idToken == "invalid-token")
+        var token = request.IdToken ?? request.AccessToken;
+
+        if (token == "invalid-token")
         {
             throw new InvalidJwtException("Invalid token");
         }
 
-        return Task.FromResult(new GoogleJsonWebSignature.Payload
-        {
-            Subject = $"google-sub-{idToken}",
-            Email = $"{idToken}@google-user.com",
-            EmailVerified = true,
-            Name = $"Google User {idToken}"
-        });
+        return Task.FromResult(new GoogleUserInfo(
+            $"google-sub-{token}",
+            $"{token}@google-user.com",
+            true,
+            $"Google User {token}"
+        ));
     }
 }

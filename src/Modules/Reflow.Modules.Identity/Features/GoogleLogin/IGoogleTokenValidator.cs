@@ -1,8 +1,13 @@
-using Google.Apis.Auth;
-
 namespace Reflow.Modules.Identity.Features.GoogleLogin;
+
+public record GoogleUserInfo(
+    string Subject,
+    string Email,
+    bool EmailVerified,
+    string Name
+);
 
 public interface IGoogleTokenValidator
 {
-    Task<GoogleJsonWebSignature.Payload> ValidateAsync(string idToken, CancellationToken ct = default);
+    Task<GoogleUserInfo> ValidateAsync(GoogleLoginRequest request, CancellationToken ct = default);
 }

@@ -82,18 +82,18 @@ public class GoogleLoginTests
             Task.FromResult(new RefreshToken { Id = Guid.NewGuid(), Token = "fake-refresh-token", UserId = userId });
     }
 
-    private sealed class StubGoogleValidator(Func<string, GoogleJsonWebSignature.Payload?> validator) : IGoogleTokenValidator
+    private sealed class StubGoogleValidator(Func<GoogleLoginRequest, GoogleUserInfo?> validator) : IGoogleTokenValidator
     {
-        public Task<GoogleJsonWebSignature.Payload> ValidateAsync(string idToken, CancellationToken ct = default)
+        public Task<GoogleUserInfo> ValidateAsync(GoogleLoginRequest request, CancellationToken ct = default)
         {
-            var result = validator(idToken);
+            var result = validator(request);
             if (result == null) throw new InvalidJwtException("Invalid token signature");
             return Task.FromResult(result);
         }
     }
 
     private static (GoogleLoginHandler handler, TestUserStore store) CreateHandler(
-        Func<string, GoogleJsonWebSignature.Payload?> validator)
+        Func<GoogleLoginRequest, GoogleUserInfo?> validator)
     {
         var store = new TestUserStore();
         var userManager = new UserManager<User>(
@@ -108,18 +108,26 @@ public class GoogleLoginTests
     }
 
     [Fact]
-    public void Validator_RejectsEmptyToken()
+    public void Validator_RejectsEmptyRequest()
     {
         var validator = new GoogleLoginRequestValidator();
-        var result = validator.Validate(new GoogleLoginRequest(""));
+        var result = validator.Validate(new GoogleLoginRequest());
         Assert.False(result.IsValid);
     }
 
     [Fact]
-    public void Validator_AcceptsValidToken()
+    public void Validator_AcceptsValidIdToken()
     {
         var validator = new GoogleLoginRequestValidator();
-        var result = validator.Validate(new GoogleLoginRequest("valid-token-string"));
+        var result = validator.Validate(new GoogleLoginRequest(IdToken: "valid-id-token"));
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Validator_AcceptsValidAccessToken()
+    {
+        var validator = new GoogleLoginRequestValidator();
+        var result = validator.Validate(new GoogleLoginRequest(AccessToken: "valid-access-token"));
         Assert.True(result.IsValid);
     }
 
@@ -128,7 +136,7 @@ public class GoogleLoginTests
     {
         var (handler, _) = CreateHandler(_ => null);
 
-        var result = await handler.Handle(new GoogleLoginRequest("bad-token"), CancellationToken.None);
+        var result = await handler.Handle(new GoogleLoginRequest(IdToken: "bad-token"), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(401, result.StatusCode);
@@ -138,15 +146,14 @@ public class GoogleLoginTests
     [Fact]
     public async Task Handle_UnverifiedEmail_Returns400()
     {
-        var (handler, _) = CreateHandler(_ => new GoogleJsonWebSignature.Payload
-        {
-            Subject = "sub123",
-            Email = "user@test.com",
-            EmailVerified = false,
-            Name = "Unverified"
-        });
+        var (handler, _) = CreateHandler(_ => new GoogleUserInfo(
+            "sub123",
+            "user@test.com",
+            false,
+            "Unverified"
+        ));
 
-        var result = await handler.Handle(new GoogleLoginRequest("valid-unverified"), CancellationToken.None);
+        var result = await handler.Handle(new GoogleLoginRequest(IdToken: "valid-unverified"), CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(400, result.StatusCode);
@@ -156,15 +163,14 @@ public class GoogleLoginTests
     [Fact]
     public async Task Handle_ValidToken_AutoProvisionsNewUser()
     {
-        var (handler, store) = CreateHandler(_ => new GoogleJsonWebSignature.Payload
-        {
-            Subject = "google-sub-456",
-            Email = "newbie@test.com",
-            EmailVerified = true,
-            Name = "Newbie User"
-        });
+        var (handler, store) = CreateHandler(_ => new GoogleUserInfo(
+            "google-sub-456",
+            "newbie@test.com",
+            true,
+            "Newbie User"
+        ));
 
-        var result = await handler.Handle(new GoogleLoginRequest("valid-newbie"), CancellationToken.None);
+        var result = await handler.Handle(new GoogleLoginRequest(AccessToken: "valid-access-token"), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(200, result.StatusCode);
@@ -181,13 +187,12 @@ public class GoogleLoginTests
     [Fact]
     public async Task Handle_ExistingEmailUser_LinksGoogleAccount()
     {
-        var (handler, store) = CreateHandler(_ => new GoogleJsonWebSignature.Payload
-        {
-            Subject = "google-sub-789",
-            Email = "existing@test.com",
-            EmailVerified = true,
-            Name = "Existing User"
-        });
+        var (handler, store) = CreateHandler(_ => new GoogleUserInfo(
+            "google-sub-789",
+            "existing@test.com",
+            true,
+            "Existing User"
+        ));
 
         // Pre-create user without Google login
         var existing = new User
@@ -199,7 +204,7 @@ public class GoogleLoginTests
         };
         await store.CreateAsync(existing, CancellationToken.None);
 
-        var result = await handler.Handle(new GoogleLoginRequest("valid-existing"), CancellationToken.None);
+        var result = await handler.Handle(new GoogleLoginRequest(IdToken: "valid-existing"), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(existing.Id, result.Value!.UserId.ToString());

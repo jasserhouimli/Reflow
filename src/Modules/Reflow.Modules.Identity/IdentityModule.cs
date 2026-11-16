@@ -41,7 +41,7 @@ public static class IdentityModule
         builder.Services.AddScoped<IdentityDbContext>();
         builder.Services.AddScoped<TokenService>();
 
-        builder.Services.AddScoped<IGoogleTokenValidator, GoogleTokenValidator>();
+        builder.Services.AddHttpClient<IGoogleTokenValidator, GoogleTokenValidator>();
         builder.Services.AddScoped<GoogleLoginHandler>();
         builder.Services.AddScoped<RegisterHandler>();
         builder.Services.AddScoped<LoginHandler>();
