@@ -50,6 +50,10 @@ import {
   FileEdit,
   Download,
   Clock,
+  Upload,
+  Cloud,
+  FileSpreadsheet,
+  FileCode,
 } from "lucide-react"
 
 interface Props {
@@ -76,6 +80,14 @@ function parseConfig(json: string): Record<string, unknown> | null {
   }
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B"
+  const k = 1024
+  const sizes = ["B", "KB", "MB", "GB"]
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
+}
+
 function FileReadConfigForm({ configJson, onChange }: {
   configJson: string
   onChange: (json: string) => void
@@ -84,25 +96,37 @@ function FileReadConfigForm({ configJson, onChange }: {
   const [available, setAvailable] = useState<SourceFile[]>([])
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+  const [showLibrary, setShowLibrary] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const set = (k: string, v: unknown) => onChange(JSON.stringify({ ...cfg, [k]: v }, null, 1))
   const str = (k: string) => typeof cfg[k] === "string" ? cfg[k] as string : ""
 
-  useEffect(() => {
-    let cancelled = false
-    files.list().then(f => { if (!cancelled) setAvailable(f) }).catch(() => { if (!cancelled) setAvailable([]) })
-    return () => { cancelled = true }
+  const loadFiles = useCallback(() => {
+    files.list()
+      .then(f => setAvailable(f))
+      .catch(() => setAvailable([]))
   }, [])
 
+  useEffect(() => {
+    loadFiles()
+  }, [loadFiles])
+
   const upload = async (file: File) => {
+    if (!file.name.toLowerCase().endsWith(".csv") && !file.name.toLowerCase().endsWith(".json")) {
+      setError("Only .csv and .json files are supported")
+      return
+    }
     setBusy(true)
     setError("")
     try {
       const content = await file.text()
       const created = await files.upload(file.name, content)
-      setAvailable(await files.list())
+      loadFiles()
       set("fileId", created.id)
       set("format", file.name.toLowerCase().endsWith(".json") ? "json" : "csv")
+      setShowLibrary(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed")
     } finally {
@@ -110,38 +134,251 @@ function FileReadConfigForm({ configJson, onChange }: {
     }
   }
 
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    try {
+      await files.remove(id)
+      loadFiles()
+      if (str("fileId") === id) {
+        set("fileId", "")
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete file")
+    }
+  }
+
+  const selectedFile = available.find(f => f.id === str("fileId"))
   const isJson = str("format") === "json"
 
   return (
-    <div className="space-y-2">
-      <label className="text-xs block">Source file
-        <select className="h-8 rounded-md border px-2 text-xs w-full"
-          value={str("fileId")}
-          onChange={e => set("fileId", e.target.value)}>
-          <option value="">— select a file —</option>
-          {available.map(f => <option key={f.id} value={f.id}>{f.fileName}</option>)}
-        </select>
-      </label>
-      <label className="text-xs block">Upload CSV or JSON
-        <input type="file" accept=".csv,.json" disabled={busy} className="block w-full text-xs"
-          onChange={e => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = "" }} />
-      </label>
-      {busy && <p className="text-xs text-muted-foreground">Uploading…</p>}
-      {error && <p className="text-xs text-destructive">{error}</p>}
-      {!str("fileId") && <p className="text-xs text-muted-foreground">Select or upload a file first.</p>}
-      {isJson
-        ? <label className="text-xs block">Root path
-            <Input className="h-8 font-mono" placeholder="data.orders"
-              value={str("rootPath")} onChange={e => set("rootPath", e.target.value)} />
-          </label>
-        : <div className="flex gap-2">
-            <label className="text-xs">Delimiter<Input className="h-8 w-16" value={str("delimiter") || ","}
-              onChange={e => set("delimiter", e.target.value.slice(0, 1) || ",")} /></label>
-            <label className="text-xs flex items-center gap-1 mt-5">
-              <input type="checkbox" checked={cfg["hasHeader"] !== false}
-                onChange={e => set("hasHeader", e.target.checked)} /> header
-            </label>
-          </div>}
+    <div className="space-y-3">
+      {/* Selected File Card */}
+      {selectedFile ? (
+        <div className="rounded-lg border bg-card p-3 shadow-2xs space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="p-1.5 rounded-md bg-primary/10 text-primary shrink-0">
+                {selectedFile.fileName.toLowerCase().endsWith(".json") ? (
+                  <FileCode className="h-4 w-4 text-blue-500" />
+                ) : (
+                  <FileSpreadsheet className="h-4 w-4 text-emerald-500" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-foreground truncate" title={selectedFile.fileName}>
+                  {selectedFile.fileName}
+                </p>
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono mt-0.5">
+                  <span>{formatBytes(selectedFile.sizeBytes)}</span>
+                  <span>•</span>
+                  <span className="uppercase">{selectedFile.contentType.includes("json") ? "JSON" : "CSV"}</span>
+                  <span>•</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+                    <Cloud className="h-2.5 w-2.5" />
+                    Supabase
+                  </span>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => set("fileId", "")}
+              className="text-muted-foreground hover:text-foreground text-xs p-1 rounded hover:bg-muted"
+              title="Deselect file"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="flex items-center justify-between pt-1 border-t text-[11px]">
+            <button
+              type="button"
+              onClick={() => setShowLibrary(prev => !prev)}
+              className="text-primary hover:underline font-medium cursor-pointer"
+            >
+              {showLibrary ? "Hide library" : "Switch file"}
+            </button>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="text-muted-foreground hover:text-foreground hover:underline cursor-pointer flex items-center gap-1"
+            >
+              <Upload className="h-3 w-3" />
+              Upload new
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* Drag & Drop Upload Zone */
+        <div
+          onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={e => {
+            e.preventDefault()
+            setIsDragging(false)
+            const f = e.dataTransfer.files?.[0]
+            if (f) void upload(f)
+          }}
+          onClick={() => fileInputRef.current?.click()}
+          className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-all ${
+            isDragging
+              ? "border-primary bg-primary/10 shadow-sm"
+              : "border-border hover:border-primary/50 hover:bg-muted/30"
+          }`}
+        >
+          <div className="flex flex-col items-center gap-1.5">
+            <div className="p-2 rounded-full bg-muted text-muted-foreground">
+              {busy ? (
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              ) : (
+                <Upload className="h-5 w-5" />
+              )}
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-xs font-semibold text-foreground">
+                {busy ? "Uploading to Supabase Storage..." : "Drop CSV or JSON, or browse"}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Files are synced to Supabase Storage automatically
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,.json"
+        disabled={busy}
+        className="hidden"
+        onChange={e => {
+          const f = e.target.files?.[0]
+          if (f) void upload(f)
+          e.target.value = ""
+        }}
+      />
+
+      {error && (
+        <div className="p-2 rounded bg-destructive/10 text-destructive text-xs flex items-center gap-1.5">
+          <X className="h-3.5 w-3.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Available Files Library (Collapsible or Shown when choosing) */}
+      {(showLibrary || !selectedFile) && available.length > 0 && (
+        <div className="space-y-1.5 pt-1">
+          <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
+            <span>Uploaded Files ({available.length})</span>
+            {selectedFile && (
+              <button
+                type="button"
+                onClick={() => setShowLibrary(false)}
+                className="text-[10px] text-primary hover:underline"
+              >
+                Close
+              </button>
+            )}
+          </div>
+          <div className="max-h-36 overflow-y-auto space-y-1 border rounded-lg p-1.5 bg-muted/20 divide-y divide-border/40">
+            {available.map(f => {
+              const isSelected = f.id === str("fileId")
+              const isJsonFile = f.fileName.toLowerCase().endsWith(".json")
+              return (
+                <div
+                  key={f.id}
+                  onClick={() => {
+                    set("fileId", f.id)
+                    set("format", isJsonFile ? "json" : "csv")
+                    setShowLibrary(false)
+                  }}
+                  className={`flex items-center justify-between p-1.5 rounded cursor-pointer transition-colors text-xs ${
+                    isSelected ? "bg-primary/15 text-primary font-medium" : "hover:bg-muted"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    {isJsonFile ? (
+                      <FileCode className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                    ) : (
+                      <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                    )}
+                    <span className="truncate">{f.fileName}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      {formatBytes(f.sizeBytes)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={e => void handleDelete(e, f.id)}
+                      className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors"
+                      title="Delete file"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Format Options */}
+      {selectedFile && (
+        <div className="pt-2 border-t space-y-2">
+          {isJson ? (
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-foreground block">JSON Root Path</label>
+              <Input
+                className="h-8 font-mono text-xs"
+                placeholder="e.g. data.items (leave empty for array)"
+                value={str("rootPath")}
+                onChange={e => set("rootPath", e.target.value)}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Optional dot-path to target array within the JSON document
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-foreground">Delimiter</label>
+                <div className="flex gap-1">
+                  {[
+                    { label: "Comma (,)", val: "," },
+                    { label: "Semicolon (;)", val: ";" },
+                    { label: "Tab (\\t)", val: "\t" },
+                    { label: "Pipe (|)", val: "|" },
+                  ].map(opt => (
+                    <button
+                      key={opt.val}
+                      type="button"
+                      onClick={() => set("delimiter", opt.val)}
+                      className={`h-6 px-1.5 text-[10px] font-mono rounded border transition-colors ${
+                        (str("delimiter") || ",") === opt.val
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {opt.val === "\t" ? "Tab" : opt.val}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-foreground">
+                <input
+                  type="checkbox"
+                  checked={cfg["hasHeader"] !== false}
+                  onChange={e => set("hasHeader", e.target.checked)}
+                  className="rounded border"
+                />
+                <span>First row contains column headers</span>
+              </label>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

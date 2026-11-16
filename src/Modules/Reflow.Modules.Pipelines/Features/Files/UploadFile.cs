@@ -3,7 +3,10 @@ using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Reflow.Infrastructure.Results;
+using Reflow.Modules.DataProcessing.Artifacts;
 using Reflow.Modules.Pipelines.Domain;
 using Reflow.Modules.Pipelines.Persistence;
 
@@ -14,9 +17,13 @@ public record UploadFileRequest(string FileName, string Content);
 public record UploadFileResponse(
     Guid Id, string FileName, string ContentType, long SizeBytes, string Sha256);
 
-public class UploadFileHandler(PipelinesDbContext db)
+public class UploadFileHandler(
+    PipelinesDbContext db,
+    IHttpClientFactory clientFactory,
+    IOptions<StorageOptions> storageOptions,
+    ILogger<UploadFileHandler> logger)
 {
-    public const int MaxContentChars = 2 * 1024 * 1024;
+    public const int MaxContentChars = 10 * 1024 * 1024;
     public const int MaxFileNameChars = 260;
 
     private static readonly Dictionary<string, string> AllowedTypes =
@@ -45,7 +52,7 @@ public class UploadFileHandler(PipelinesDbContext db)
             return Result<UploadFileResponse>.Failure("File content is required", 400);
         if (content.Length > MaxContentChars)
             return Result<UploadFileResponse>.Failure(
-                $"File is too large (max {MaxContentChars} characters)", 400);
+                $"File is too large (max {MaxContentChars / (1024 * 1024)}MB)", 400);
 
         var bytes = Encoding.UTF8.GetBytes(content);
         var sha256 = Convert.ToHexString(SHA256.HashData(bytes));
@@ -71,6 +78,49 @@ public class UploadFileHandler(PipelinesDbContext db)
         };
         db.SourceFiles.Add(file);
         await db.SaveChangesAsync(ct);
+
+        // Sync uploaded source file to Supabase Storage if configured
+        var opts = storageOptions.Value;
+        if (!string.IsNullOrWhiteSpace(opts.SupabaseUrl) && !string.IsNullOrWhiteSpace(opts.SupabaseKey))
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var client = clientFactory.CreateClient();
+                    var baseUrl = SupabaseArtifactStore.SanitizeBaseUrl(opts.SupabaseUrl);
+                    var bucket = string.IsNullOrWhiteSpace(opts.Bucket) ? "reflow" : opts.Bucket.Trim('/');
+                    var objectPath = $"sources/{file.Id:N}/{fileName}";
+                    var uploadUrl = $"{baseUrl}/storage/v1/object/{bucket}/{objectPath}";
+
+                    using var req = new HttpRequestMessage(HttpMethod.Post, uploadUrl);
+                    req.Headers.Add("apikey", opts.SupabaseKey);
+                    if (opts.SupabaseKey.StartsWith("ey", StringComparison.OrdinalIgnoreCase))
+                    {
+                        req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", opts.SupabaseKey);
+                    }
+                    req.Headers.Add("x-upsert", "true");
+                    req.Content = new ByteArrayContent(bytes);
+                    req.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+
+                    var res = await client.SendAsync(req);
+                    if (res.IsSuccessStatusCode)
+                    {
+                        logger.LogInformation("Successfully synced source file {FileName} to Supabase bucket '{Bucket}' at '{ObjectPath}'", fileName, bucket, objectPath);
+                    }
+                    else
+                    {
+                        var err = await res.Content.ReadAsStringAsync();
+                        logger.LogWarning("Failed to sync source file to Supabase: {Status} - {Body}", res.StatusCode, err);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Exception syncing source file {FileName} to Supabase", fileName);
+                }
+            });
+        }
+
         return Result<UploadFileResponse>.Success(ToResponse(file), 201);
     }
 
