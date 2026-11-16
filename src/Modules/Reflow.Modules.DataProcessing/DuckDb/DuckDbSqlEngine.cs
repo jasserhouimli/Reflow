@@ -13,6 +13,21 @@ public sealed class DuckDbSqlEngine : ISqlEngine
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
         TimeSpan.FromMilliseconds(200));
 
+    private static readonly Regex UncastStrftimeFormatFirstRegex = new(
+        @"\b(?<fn>strftime)\s*\(\s*(?<fmt>'[^']*')\s*,\s*(?!(?:cast|try_cast)\b)(?<col>[a-zA-Z_][a-zA-Z0-9_\.]*)\s*\)",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+        TimeSpan.FromMilliseconds(200));
+
+    private static readonly Regex UncastStrftimeColFirstRegex = new(
+        @"\b(?<fn>strftime)\s*\(\s*(?!(?:cast|try_cast)\b)(?<col>[a-zA-Z_][a-zA-Z0-9_\.]*)\s*,\s*(?<fmt>'[^']*')\s*\)",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+        TimeSpan.FromMilliseconds(200));
+
+    private static readonly Regex UncastDatePartRegex = new(
+        @"\b(?<fn>date_trunc|date_part)\s*\(\s*(?<part>'[^']*')\s*,\s*(?!(?:cast|try_cast)\b)(?<col>[a-zA-Z_][a-zA-Z0-9_\.]*)\s*\)",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+        TimeSpan.FromMilliseconds(200));
+
     public Frame Query(IReadOnlyList<(string Name, Frame Frame)> tables, string sql)
     {
         if (string.IsNullOrWhiteSpace(sql))
@@ -24,7 +39,7 @@ public sealed class DuckDbSqlEngine : ISqlEngine
         {
             return ExecuteQuery(tables, sql);
         }
-        catch (Exception ex) when (IsVarcharAggregationError(ex) && TryAutoCastVarcharAggregations(sql, out var rewrittenSql))
+        catch (Exception ex) when (IsBinderTypeMismatch(ex) && TryAutoFixVarcharQueries(sql, out var rewrittenSql))
         {
             return ExecuteQuery(tables, rewrittenSql);
         }
@@ -64,27 +79,60 @@ public sealed class DuckDbSqlEngine : ISqlEngine
         return result;
     }
 
-    private static bool IsVarcharAggregationError(Exception ex) =>
-        ex.Message.Contains("No function matches the given name and argument types", StringComparison.OrdinalIgnoreCase)
-        && (ex.Message.Contains("sum(VARCHAR)", StringComparison.OrdinalIgnoreCase)
-            || ex.Message.Contains("avg(VARCHAR)", StringComparison.OrdinalIgnoreCase));
+    private static bool IsBinderTypeMismatch(Exception ex) =>
+        ex.Message.Contains("Binder Error", StringComparison.OrdinalIgnoreCase)
+        || ex.Message.Contains("No function matches the given name and argument types", StringComparison.OrdinalIgnoreCase)
+        || ex.Message.Contains("Could not choose a best candidate function for the function call", StringComparison.OrdinalIgnoreCase);
 
-    private static bool TryAutoCastVarcharAggregations(string sql, out string rewrittenSql)
+    private static bool TryAutoFixVarcharQueries(string sql, out string rewrittenSql)
     {
-        if (!UncastAggregationRegex.IsMatch(sql))
+        var current = sql;
+
+        if (UncastAggregationRegex.IsMatch(current))
         {
-            rewrittenSql = sql;
-            return false;
+            current = UncastAggregationRegex.Replace(current, match =>
+            {
+                var fn = match.Groups["fn"].Value;
+                var dist = match.Groups["dist"].Success ? "DISTINCT " : "";
+                var col = match.Groups["col"].Value;
+                return $"{fn}({dist}TRY_CAST({col} AS DOUBLE))";
+            });
         }
 
-        rewrittenSql = UncastAggregationRegex.Replace(sql, match =>
+        if (UncastStrftimeFormatFirstRegex.IsMatch(current))
         {
-            var fn = match.Groups["fn"].Value;
-            var dist = match.Groups["dist"].Success ? "DISTINCT " : "";
-            var col = match.Groups["col"].Value;
-            return $"{fn}({dist}TRY_CAST({col} AS DOUBLE))";
-        });
+            current = UncastStrftimeFormatFirstRegex.Replace(current, match =>
+            {
+                var fn = match.Groups["fn"].Value;
+                var fmt = match.Groups["fmt"].Value;
+                var col = match.Groups["col"].Value;
+                return $"{fn}({fmt}, TRY_CAST({col} AS TIMESTAMP))";
+            });
+        }
 
+        if (UncastStrftimeColFirstRegex.IsMatch(current))
+        {
+            current = UncastStrftimeColFirstRegex.Replace(current, match =>
+            {
+                var fn = match.Groups["fn"].Value;
+                var col = match.Groups["col"].Value;
+                var fmt = match.Groups["fmt"].Value;
+                return $"{fn}(TRY_CAST({col} AS TIMESTAMP), {fmt})";
+            });
+        }
+
+        if (UncastDatePartRegex.IsMatch(current))
+        {
+            current = UncastDatePartRegex.Replace(current, match =>
+            {
+                var fn = match.Groups["fn"].Value;
+                var part = match.Groups["part"].Value;
+                var col = match.Groups["col"].Value;
+                return $"{fn}({part}, TRY_CAST({col} AS TIMESTAMP))";
+            });
+        }
+
+        rewrittenSql = current;
         return !string.Equals(sql, rewrittenSql, StringComparison.Ordinal);
     }
 
