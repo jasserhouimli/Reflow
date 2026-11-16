@@ -20,6 +20,7 @@ import { EditorAiDialog } from "@/components/EditorAiDialog"
 import { cronToHuman } from "@/lib/cronHelper"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Play,
   Terminal,

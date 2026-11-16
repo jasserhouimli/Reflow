@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { pipelines, PIPELINE_STATUSES, type Pipeline } from "@/api/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import { EditorAiDialog } from "@/components/EditorAiDialog"
 import {
   Workflow,
@@ -194,8 +195,22 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
 
         {/* Pipeline List */}
         {loading ? (
-          <div className="py-16 text-center text-xs text-muted-foreground animate-pulse">
-            Loading pipelines...
+          <div className="border rounded-lg bg-card divide-y overflow-hidden shadow-2xs">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-8 w-8 rounded-md" />
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-4 w-36" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-5 w-14 rounded-full" />
+                  <Skeleton className="h-4 w-4 rounded" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : shown.length === 0 ? (
           <div className="border border-dashed rounded-xl p-12 text-center space-y-3 bg-muted/10">

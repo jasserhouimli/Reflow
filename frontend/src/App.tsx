@@ -3,6 +3,7 @@ import { auth } from "@/api/client"
 import { LoginPage } from "@/pages/LoginPage"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { PipelineEditorPage } from "@/pages/PipelineEditorPage"
+import { Skeleton } from "@/components/ui/skeleton"
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null }
@@ -45,7 +46,39 @@ export default function App() {
     setSelectedPipeline(null)
   }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <header className="border-b bg-card px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-7 w-7 rounded-md" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-7 w-32 rounded-md" />
+            <Skeleton className="h-7 w-16 rounded-md" />
+          </div>
+        </header>
+        <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-8 space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-36" />
+              <Skeleton className="h-3.5 w-64" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-8 w-20 rounded-md" />
+              <Skeleton className="h-8 w-24 rounded-md" />
+            </div>
+          </div>
+          <div className="space-y-3">
+            <Skeleton className="h-16 w-full rounded-lg" />
+            <Skeleton className="h-16 w-full rounded-lg" />
+            <Skeleton className="h-16 w-full rounded-lg" />
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   if (!user) return <LoginPage onLogin={() => auth.me().then(setUser)} />
 
