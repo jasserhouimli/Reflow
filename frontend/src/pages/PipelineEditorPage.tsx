@@ -228,7 +228,11 @@ function FileReadConfigForm({ configJson, onChange }: {
             </div>
             <div className="space-y-0.5">
               <p className="text-xs font-semibold text-foreground">
-                {busy ? "Uploading…" : "Drop CSV or JSON, or browse"}
+                {busy ? "Uploading…" : (
+                  <>
+                    Drop CSV or JSON here, or <span className="text-primary underline">browse file</span>
+                  </>
+                )}
               </p>
               <p className="text-[10px] text-muted-foreground">
                 Supports .csv and .json files up to 10MB
@@ -259,22 +263,22 @@ function FileReadConfigForm({ configJson, onChange }: {
         </div>
       )}
 
-      {/* Available Files Library (Collapsible or Shown when choosing) */}
+      {/* Available Files Library */}
       {(showLibrary || !selectedFile) && available.length > 0 && (
         <div className="space-y-1.5 pt-1">
           <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
-            <span>Uploaded Files ({available.length})</span>
+            <span>Choose from uploaded files ({available.length})</span>
             {selectedFile && (
               <button
                 type="button"
                 onClick={() => setShowLibrary(false)}
-                className="text-[10px] text-primary hover:underline"
+                className="text-[10px] text-primary hover:underline cursor-pointer"
               >
                 Close
               </button>
             )}
           </div>
-          <div className="max-h-36 overflow-y-auto space-y-1 border rounded-lg p-1.5 bg-muted/20 divide-y divide-border/40">
+          <div className="max-h-44 overflow-y-auto space-y-1 border rounded-lg p-1.5 bg-muted/20 divide-y divide-border/40">
             {available.map(f => {
               const isSelected = f.id === str("fileId")
               const isJsonFile = f.fileName.toLowerCase().endsWith(".json")
@@ -286,29 +290,36 @@ function FileReadConfigForm({ configJson, onChange }: {
                     set("format", isJsonFile ? "json" : "csv")
                     setShowLibrary(false)
                   }}
-                  className={`flex items-center justify-between p-1.5 rounded cursor-pointer transition-colors text-xs ${
-                    isSelected ? "bg-primary/15 text-primary font-medium" : "hover:bg-muted"
+                  className={`flex items-center justify-between p-2 rounded-md cursor-pointer transition-colors text-xs ${
+                    isSelected ? "bg-primary/15 border border-primary/40 font-medium" : "hover:bg-muted/60"
                   }`}
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     {isJsonFile ? (
-                      <FileCode className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                      <FileCode className="h-4 w-4 text-blue-500 shrink-0" />
                     ) : (
-                      <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      <FileSpreadsheet className="h-4 w-4 text-emerald-500 shrink-0" />
                     )}
-                    <span className="truncate">{f.fileName}</span>
+                    <span className="truncate text-foreground font-mono">{f.fileName}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-[10px] text-muted-foreground font-mono">
                       {formatBytes(f.sizeBytes)}
                     </span>
+                    <Button
+                      size="sm"
+                      variant={isSelected ? "default" : "outline"}
+                      className="h-5 px-2 text-[10px] font-mono pointer-events-none"
+                    >
+                      {isSelected ? "Selected" : "Select"}
+                    </Button>
                     <button
                       type="button"
                       onClick={e => void handleDelete(e, f.id)}
-                      className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors"
+                      className="text-muted-foreground hover:text-destructive p-1 rounded transition-colors"
                       title="Delete file"
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
