@@ -51,7 +51,6 @@ import {
   Download,
   Clock,
   Upload,
-  Cloud,
   FileSpreadsheet,
   FileCode,
 } from "lucide-react"
@@ -172,11 +171,6 @@ function FileReadConfigForm({ configJson, onChange }: {
                   <span>{formatBytes(selectedFile.sizeBytes)}</span>
                   <span>•</span>
                   <span className="uppercase">{selectedFile.contentType.includes("json") ? "JSON" : "CSV"}</span>
-                  <span>•</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
-                    <Cloud className="h-2.5 w-2.5" />
-                    Supabase
-                  </span>
                 </div>
               </div>
             </div>
@@ -234,10 +228,10 @@ function FileReadConfigForm({ configJson, onChange }: {
             </div>
             <div className="space-y-0.5">
               <p className="text-xs font-semibold text-foreground">
-                {busy ? "Uploading to Supabase Storage..." : "Drop CSV or JSON, or browse"}
+                {busy ? "Uploading…" : "Drop CSV or JSON, or browse"}
               </p>
               <p className="text-[10px] text-muted-foreground">
-                Files are synced to Supabase Storage automatically
+                Supports .csv and .json files up to 10MB
               </p>
             </div>
           </div>
@@ -1852,7 +1846,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                                 variant="outline"
                                 disabled
                                 className="h-6 px-2 text-[11px] flex items-center gap-1 font-mono text-muted-foreground opacity-60 cursor-not-allowed"
-                                title="Uploading to Supabase..."
+                                title="Uploading…"
                               >
                                 <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
                                 <span>Uploading...</span>
@@ -2213,7 +2207,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                             variant="outline"
                             disabled
                             className="h-6 px-2 text-[11px] flex items-center gap-1 font-mono text-muted-foreground opacity-60 cursor-not-allowed"
-                            title="Uploading to Supabase..."
+                            title="Uploading…"
                           >
                             <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
                             <span>Uploading...</span>
