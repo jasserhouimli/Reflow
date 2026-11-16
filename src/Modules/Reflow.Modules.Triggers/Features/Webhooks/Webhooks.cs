@@ -106,58 +106,32 @@ public class ReceiveWebhookHandler(
         if (externalId?.Length > 200)
             return Results.Json(new { error = "Event id too long" }, statusCode: 400);
 
-        WebhookEvent evt;
         if (externalId is not null)
         {
             var existing = await db.WebhookEvents.FirstOrDefaultAsync(
                 e => e.TriggerId == trigger.Id && e.ExternalEventId == externalId, ct);
-            if (existing is not null)
+            if (existing?.PipelineRunId is not null)
             {
-                if (existing.PipelineRunId is not null)
-                {
-                    existing.ProcessingStatus = WebhookProcessingStatus.Duplicate;
-                    await db.SaveChangesAsync(ct);
-                    return Results.Json(new { id = existing.PipelineRunId, duplicate = true }, statusCode: 200);
-                }
-
-                // If previously rejected or failed without a run, update the existing record instead of inserting a duplicate key
-                existing.ReceivedAt = DateTime.UtcNow;
-                existing.PayloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(body ?? string.Empty)));
-                existing.ProcessingStatus = WebhookProcessingStatus.Received;
-                evt = existing;
+                existing.ProcessingStatus = WebhookProcessingStatus.Duplicate;
+                await db.SaveChangesAsync(ct);
+                return Results.Json(new { id = existing.PipelineRunId, duplicate = true }, statusCode: 200);
             }
-            else
-            {
-                evt = new WebhookEvent
-                {
-                    Id = Guid.NewGuid(),
-                    TriggerId = trigger.Id,
-                    ExternalEventId = externalId,
-                    PayloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(body ?? string.Empty))),
-                    ProcessingStatus = WebhookProcessingStatus.Received,
-                    ReceivedAt = DateTime.UtcNow,
-                };
-                db.WebhookEvents.Add(evt);
-            }
-        }
-        else
-        {
-            evt = new WebhookEvent
-            {
-                Id = Guid.NewGuid(),
-                TriggerId = trigger.Id,
-                ExternalEventId = null,
-                PayloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(body ?? string.Empty))),
-                ProcessingStatus = WebhookProcessingStatus.Received,
-                ReceivedAt = DateTime.UtcNow,
-            };
-            db.WebhookEvents.Add(evt);
         }
 
         var active = await monitor.CountActiveRunsAsync(trigger.PipelineId, ct);
         if (active >= MaxQueuedRuns)
             return Results.Json(new { error = "Too many active runs" }, statusCode: 429);
 
+        var evt = new WebhookEvent
+        {
+            Id = Guid.NewGuid(),
+            TriggerId = trigger.Id,
+            ExternalEventId = externalId,
+            PayloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(body ?? string.Empty))),
+            ProcessingStatus = WebhookProcessingStatus.Received,
+            ReceivedAt = DateTime.UtcNow,
+        };
+        db.WebhookEvents.Add(evt);
         await db.SaveChangesAsync(ct);
 
         var started = await starter.StartRunAsync(

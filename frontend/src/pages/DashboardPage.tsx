@@ -2,7 +2,6 @@ import { useState, useEffect } from "react"
 import { pipelines, PIPELINE_STATUSES, type Pipeline } from "@/api/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Skeleton } from "@/components/ui/skeleton"
 import { EditorAiDialog } from "@/components/EditorAiDialog"
 import {
   Workflow,
@@ -14,44 +13,13 @@ import {
   LogOut,
   Clock,
   Layers,
-  ChevronRight,
-  Activity,
-  Cpu,
-  Database,
+  ChevronRight
 } from "lucide-react"
 
 interface DashboardPageProps {
   user: { id: string; email: string; displayName: string }
   onSelectPipeline: (id: string) => void
   onLogout: () => void
-}
-
-function DashboardLoadingSkeleton() {
-  return (
-    <div className="space-y-3">
-      {[...Array(4)].map((_, i) => (
-        <div
-          key={i}
-          className="p-4 rounded-lg border border-border/70 bg-card/70 flex items-center justify-between"
-        >
-          <div className="space-y-2.5">
-            <div className="flex items-center gap-2.5">
-              <Skeleton className="h-4 w-44 rounded" />
-              <Skeleton className="h-4 w-16 rounded-full" />
-            </div>
-            <div className="flex items-center gap-3">
-              <Skeleton className="h-3 w-16 rounded" />
-              <Skeleton className="h-3 w-28 rounded" />
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-7 w-20 rounded-md" />
-            <Skeleton className="h-5 w-5 rounded" />
-          </div>
-        </div>
-      ))}
-    </div>
-  )
 }
 
 export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPageProps) {
@@ -112,38 +80,27 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
     ? list.filter(p => p.name.toLowerCase().includes(query.trim().toLowerCase()))
     : list
 
-  const publishedCount = list.filter(p => p.status === 1 || p.currentVersion > 0).length
-
   return (
-    <div className="min-h-screen bg-background flex flex-col bg-dot-grid">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Top Navigation */}
-      <header className="border-b bg-card/85 backdrop-blur-md px-6 py-3 flex items-center justify-between sticky top-0 z-10 shadow-xs">
+      <header className="border-b bg-card px-6 py-3 flex items-center justify-between sticky top-0 z-10 shadow-2xs">
         <div className="flex items-center gap-3">
-          <div className="h-7 w-7 rounded-md bg-primary text-primary-foreground flex items-center justify-center font-bold shadow-xs">
+          <div className="h-7 w-7 rounded-md bg-foreground text-background flex items-center justify-center font-bold">
             <Workflow className="h-4 w-4" />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm tracking-tight text-foreground">Reflow</span>
-            <span className="text-[10px] text-muted-foreground px-1.5 py-0.5 rounded bg-muted/80 border border-border/80 font-mono">
-              Workspace
-            </span>
+          <div>
+            <span className="font-semibold text-sm tracking-tight">Reflow</span>
+            <span className="text-[10px] text-muted-foreground ml-2 px-1.5 py-0.5 rounded bg-muted font-mono">v1.0</span>
           </div>
         </div>
 
         <div className="flex items-center gap-3 text-xs">
-          <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-md bg-muted/40 border border-border/80 text-muted-foreground font-mono">
-            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-md bg-muted/50 border text-muted-foreground font-mono">
             <span>{user.email}</span>
           </div>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onLogout}
-            className="h-7 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-          >
+          <Button variant="ghost" size="sm" onClick={onLogout} className="h-7 text-xs text-muted-foreground hover:text-foreground">
             <LogOut className="h-3.5 w-3.5 mr-1" />
-            Sign Out
+            Logout
           </Button>
         </div>
       </header>
@@ -153,9 +110,9 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
         {/* Banner / Actions Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Data Pipelines</h1>
+            <h1 className="text-xl font-bold tracking-tight">Data Pipelines</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Build, schedule, and orchestrate reactive data workflows with DuckDB and AI.
+              Build, schedule, and orchestrate reactive data workflows.
             </p>
           </div>
 
@@ -165,24 +122,24 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
               size="sm"
               onClick={createSample}
               disabled={busy}
-              className="h-8 text-xs gap-1.5 border-border/80 bg-card/80 hover:bg-muted cursor-pointer"
+              className="h-8 text-xs gap-1.5"
             >
-              <Play className="h-3.5 w-3.5 text-emerald-500" />
+              <Play className="h-3.5 w-3.5 text-emerald-600" />
               {busy ? "Deploying..." : "Try Sample"}
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowAi(true)}
-              className="h-8 text-xs gap-1.5 border-border/80 bg-card/80 hover:bg-muted cursor-pointer"
+              className="h-8 text-xs gap-1.5"
             >
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <Sparkles className="h-3.5 w-3.5 text-blue-500" />
               AI Prompt
             </Button>
             <Button
               size="sm"
               onClick={() => setCreating(true)}
-              className="h-8 text-xs gap-1.5 font-medium shadow-xs cursor-pointer active:scale-[0.985] transition-all"
+              className="h-8 text-xs gap-1.5 font-medium"
             >
               <Plus className="h-3.5 w-3.5" />
               New Pipeline
@@ -190,58 +147,9 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
           </div>
         </div>
 
-        {/* Databricks KPI Strip */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-          <div className="p-3.5 rounded-lg border border-border/80 bg-card/75 backdrop-blur-xs flex items-center justify-between">
-            <div className="space-y-0.5">
-              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider font-mono">
-                Pipelines
-              </span>
-              <div className="flex items-baseline gap-2">
-                <span className="text-lg font-bold text-foreground">{list.length}</span>
-                <span className="text-[11px] text-muted-foreground font-mono">
-                  ({publishedCount} live)
-                </span>
-              </div>
-            </div>
-            <div className="h-8 w-8 rounded-md bg-muted/60 flex items-center justify-center text-muted-foreground">
-              <Activity className="h-4 w-4 text-primary" />
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-lg border border-border/80 bg-card/75 backdrop-blur-xs flex items-center justify-between">
-            <div className="space-y-0.5">
-              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider font-mono">
-                Engine Runtime
-              </span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-semibold text-emerald-400">Operational</span>
-                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              </div>
-            </div>
-            <div className="h-8 w-8 rounded-md bg-muted/60 flex items-center justify-center text-muted-foreground">
-              <Cpu className="h-4 w-4 text-emerald-500" />
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-lg border border-border/80 bg-card/75 backdrop-blur-xs flex items-center justify-between">
-            <div className="space-y-0.5">
-              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider font-mono">
-                Data Backend
-              </span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-semibold text-foreground">In-Memory DuckDB</span>
-              </div>
-            </div>
-            <div className="h-8 w-8 rounded-md bg-muted/60 flex items-center justify-center text-muted-foreground">
-              <Database className="h-4 w-4 text-cyan-400" />
-            </div>
-          </div>
-        </div>
-
         {/* Quick inline creator */}
         {creating && (
-          <div className="p-3 rounded-lg border border-primary/40 bg-card/90 shadow-sm flex items-center gap-2 animate-dialog-pop">
+          <div className="p-3 rounded-lg border bg-card shadow-xs flex items-center gap-2">
             <Input
               autoFocus
               placeholder="Pipeline name (e.g., Daily Customer Sync)..."
@@ -251,12 +159,12 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
                 if (e.key === "Enter") create()
                 if (e.key === "Escape") setCreating(false)
               }}
-              className="h-8 text-xs flex-1 bg-background/80"
+              className="h-8 text-xs flex-1"
             />
-            <Button size="sm" className="h-8 text-xs cursor-pointer" onClick={create} disabled={!newName.trim()}>
+            <Button size="sm" className="h-8 text-xs" onClick={create} disabled={!newName.trim()}>
               Create & Open
             </Button>
-            <Button size="sm" variant="ghost" className="h-8 text-xs cursor-pointer" onClick={() => setCreating(false)}>
+            <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setCreating(false)}>
               Cancel
             </Button>
           </div>
@@ -267,10 +175,10 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
           <div className="relative flex-1 max-w-sm">
             <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Filter pipelines by name..."
+              placeholder="Filter pipelines..."
               value={query}
               onChange={e => setQuery(e.target.value)}
-              className="h-8 pl-8 text-xs bg-card/60"
+              className="h-8 pl-8 text-xs"
             />
           </div>
           <span className="text-xs text-muted-foreground font-mono">
@@ -286,14 +194,16 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
 
         {/* Pipeline List */}
         {loading ? (
-          <DashboardLoadingSkeleton />
+          <div className="py-16 text-center text-xs text-muted-foreground animate-pulse">
+            Loading pipelines...
+          </div>
         ) : shown.length === 0 ? (
-          <div className="border border-dashed border-border/80 rounded-xl p-12 text-center space-y-3 bg-card/30">
-            <div className="h-10 w-10 rounded-full bg-muted/60 flex items-center justify-center mx-auto text-muted-foreground">
+          <div className="border border-dashed rounded-xl p-12 text-center space-y-3 bg-muted/10">
+            <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mx-auto text-muted-foreground">
               <Layers className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground">
+              <p className="text-sm font-semibold">
                 {list.length === 0 ? "No pipelines created yet" : "No pipelines match your search"}
               </p>
               <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
@@ -304,19 +214,19 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
             </div>
             {list.length === 0 && (
               <div className="flex justify-center gap-2 pt-2">
-                <Button size="sm" onClick={() => setCreating(true)} className="h-8 text-xs gap-1.5 cursor-pointer">
+                <Button size="sm" onClick={() => setCreating(true)} className="h-8 text-xs gap-1.5">
                   <Plus className="h-3.5 w-3.5" />
                   Create First Pipeline
                 </Button>
-                <Button size="sm" variant="outline" onClick={createSample} disabled={busy} className="h-8 text-xs gap-1.5 cursor-pointer">
-                  <Play className="h-3.5 w-3.5 text-emerald-500" />
+                <Button size="sm" variant="outline" onClick={createSample} disabled={busy} className="h-8 text-xs gap-1.5">
+                  <Play className="h-3.5 w-3.5 text-emerald-600" />
                   Try Sample Sales Flow
                 </Button>
               </div>
             )}
           </div>
         ) : (
-          <div className="border border-border/80 rounded-lg bg-card/85 divide-y divide-border/60 overflow-hidden shadow-xs">
+          <div className="border rounded-lg bg-card divide-y overflow-hidden shadow-2xs">
             {shown.map(p => {
               const statusName = PIPELINE_STATUSES[p.status] ?? "Draft"
               const isPublished = p.status === 1 || p.currentVersion > 0
@@ -324,39 +234,30 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
                 <div
                   key={p.id}
                   onClick={() => onSelectPipeline(p.id)}
-                  className="px-4 py-3.5 flex items-center justify-between hover:bg-muted/40 cursor-pointer transition-all duration-150 group"
+                  className="px-4 py-3 flex items-center justify-between hover:bg-muted/40 cursor-pointer transition-colors group"
                 >
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="h-8 w-8 rounded-md bg-muted/60 border border-border/60 flex items-center justify-center text-muted-foreground shrink-0 group-hover:text-primary group-hover:border-primary/40 transition-colors">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-8 w-8 rounded-md bg-muted/60 flex items-center justify-center text-muted-foreground shrink-0 group-hover:text-primary transition-colors">
                       <Workflow className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-2">
                         <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors truncate">
                           {p.name}
                         </span>
-                        <span
-                          className={`text-[10px] px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1.5 border ${
-                            isPublished
-                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                              : "bg-muted/60 text-muted-foreground border-border/80"
-                          }`}
-                        >
-                          <span
-                            className={`h-1.5 w-1.5 rounded-full ${
-                              isPublished ? "bg-emerald-400 animate-pulse" : "bg-muted-foreground"
-                            }`}
-                          />
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${
+                          isPublished
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                            : "bg-muted text-muted-foreground"
+                        }`}>
                           {statusName}
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 text-[11px] text-muted-foreground font-mono mt-1">
-                        <span className="px-1.5 py-0.2 rounded bg-muted/60 border border-border/60">
-                          v{p.currentVersion}
-                        </span>
+                      <div className="flex items-center gap-3 text-[11px] text-muted-foreground font-mono mt-0.5">
+                        <span>v{p.currentVersion}</span>
                         {p.updatedAt && (
                           <span className="flex items-center gap-1 text-[10px]">
-                            <Clock className="h-3 w-3" />
+                            <Clock className="h-2.5 w-2.5" />
                             {new Date(p.updatedAt).toLocaleDateString()}
                           </span>
                         )}
@@ -368,13 +269,13 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={(e) => remove(p.id, e)}
                       title="Delete pipeline"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-foreground transition-colors" />
                   </div>
                 </div>
               )
