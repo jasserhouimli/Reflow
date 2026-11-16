@@ -296,6 +296,13 @@ export const artifactUrl = (runId: string, nodeId: string) => {
   return token ? `${base}?token=${encodeURIComponent(token)}` : base;
 };
 
+export async function getArtifactStatus(
+  runId: string,
+  nodeId: string
+): Promise<{ status: 'ready' | 'uploading' | 'failed' | 'none' }> {
+  return request(`/runs/${runId}/artifacts/${encodeURIComponent(nodeId)}/status`);
+}
+
 export async function downloadArtifact(runId: string, nodeId: string, fallbackFileName?: string): Promise<void> {
   const token = getAuthToken();
   const res = await fetch(artifactUrl(runId, nodeId), {

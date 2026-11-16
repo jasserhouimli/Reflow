@@ -25,4 +25,9 @@ public interface IDataArtifactStore
         Guid runId,
         string nodeId,
         CancellationToken ct = default);
+
+    Task<string> GetStatusAsync(
+        Guid runId,
+        string nodeId,
+        CancellationToken ct = default);
 }

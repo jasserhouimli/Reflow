@@ -108,6 +108,23 @@ public static class RunTasksEndpoints
             return Results.Ok(attempts);
         }).RequireAuthorization().WithName("ListTaskAttempts");
 
+        app.MapGet("/api/v1/runs/{id:guid}/artifacts/{nodeId}/status", async (
+            Guid id,
+            string nodeId,
+            PipelineExecutionDbContext db,
+            IDataArtifactStore artifacts,
+            HttpContext http,
+            CancellationToken ct) =>
+        {
+            if (!TryOwner(http, out var ownerId))
+                return Results.Json(new { error = "Unauthorized" }, statusCode: 401);
+            if (!await OwnsRun(db, id, ownerId, ct))
+                return Results.Json(new { error = "Run not found" }, statusCode: 404);
+
+            var status = await artifacts.GetStatusAsync(id, nodeId, ct);
+            return Results.Ok(new { status });
+        }).RequireAuthorization().WithName("GetArtifactStatus");
+
         app.MapGet("/api/v1/runs/{id:guid}/artifacts/{nodeId}", async (
             Guid id,
             string nodeId,

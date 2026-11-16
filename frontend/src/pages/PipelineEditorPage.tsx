@@ -8,7 +8,7 @@ import {
 import "@xyflow/react/dist/style.css"
 import {
   pipelines, runs, triggers, nodeTypes, versions, files,
-  downloadArtifact, exportRowsToFile,
+  downloadArtifact, exportRowsToFile, getArtifactStatus,
   RUN_STATUSES, TASK_STATUSES,
   type PipelineDetail, type PipelineEdge,
   type NodeDefinition, type PipelineRun, type TaskRun, type RunLog, type RunSnapshot, type TriggerItem,
@@ -359,16 +359,13 @@ function getCategoryIcon(cat: string) {
 function PipelineNodeView({ id, data, selected }: NodeProps) {
   const d = data as unknown as FlowNodeData & { category?: string }
   const isRunning = d.status === 2
-  const isSuccess = d.status === 3
   const isFailed = d.status === 4
-  const isQueued = d.status === 0 || d.status === 1 || d.status === 6
 
-  const statusBorder =
-    isRunning ? "border-blue-500 ring-2 ring-blue-500/50 shadow-md shadow-blue-500/20" :
-    isSuccess ? "border-emerald-500/80 ring-1 ring-emerald-500/40" :
-    isFailed ? "border-rose-500 ring-2 ring-rose-500/40" :
-    isQueued ? "border-amber-500/60" :
-    selected ? "ring-2 ring-primary border-primary" : "border-border"
+  const statusBorder = selected
+    ? "ring-2 ring-primary border-primary"
+    : isFailed
+    ? "border-destructive/80"
+    : "border-border"
 
   return (
     <div className={`rounded-lg border bg-card px-3 py-2.5 shadow-2xs min-w-44 transition-all ${statusBorder}`}>
@@ -381,26 +378,12 @@ function PipelineNodeView({ id, data, selected }: NodeProps) {
           <div className="text-xs font-semibold truncate text-foreground">{d.label}</div>
         </div>
         {isRunning && (
-          <span className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-mono font-medium animate-pulse shrink-0">
-            <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-ping" />
-            running
-          </span>
-        )}
-        {isSuccess && (
-          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 font-medium shrink-0">
-            <Check className="h-3 w-3" />
-            ok
-          </span>
+          <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />
         )}
         {isFailed && (
-          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400 font-medium shrink-0">
+          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-destructive/15 text-destructive font-medium shrink-0">
             <X className="h-3 w-3" />
             error
-          </span>
-        )}
-        {isQueued && (
-          <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 font-medium shrink-0">
-            queued
           </span>
         )}
       </div>
@@ -471,6 +454,19 @@ const snapshot = (name: string, nodes: Node[], edges: Edge[]) =>
     edges: edges.map(e => ({ s: e.source, t: e.target })),
   })
 
+function getTaskOutputFormat(task: TaskDetail | TaskRun | null): "csv" | "json" {
+  if (!task) return "csv"
+  const cfgStr = "configJson" in task ? task.configJson : null
+  if (cfgStr) {
+    try {
+      const cfg = JSON.parse(cfgStr)
+      if (typeof cfg?.format === "string" && cfg.format.toLowerCase() === "json") return "json"
+      if (typeof cfg?.fileName === "string" && cfg.fileName.toLowerCase().endsWith(".json")) return "json"
+    } catch {}
+  }
+  return "csv"
+}
+
 export function PipelineEditorPage(props: Props) {
   return (
     <ReactFlowProvider>
@@ -519,6 +515,37 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
 
   const [versionList, setVersionList] = useState<Array<{ versionNumber: number; publishedAt: string }>>([])
   const [versionDetail, setVersionDetail] = useState<VersionDetail | null>(null)
+  const [artifactStatuses, setArtifactStatuses] = useState<Record<string, "ready" | "uploading" | "failed" | "none">>({})
+
+  useEffect(() => {
+    if (!runId || !tasks || tasks.length === 0) return
+    const outputTasks = tasks.filter(t => t.nodeType === "data.output" && t.status === 3)
+    if (outputTasks.length === 0) return
+
+    let alive = true
+    const checkStatuses = async () => {
+      for (const t of outputTasks) {
+        if (artifactStatuses[t.nodeId] === "ready") continue
+        try {
+          const res = await getArtifactStatus(runId, t.nodeId)
+          if (alive && res?.status) {
+            setArtifactStatuses(prev => ({ ...prev, [t.nodeId]: res.status }))
+          }
+        } catch {
+          if (alive) setArtifactStatuses(prev => ({ ...prev, [t.nodeId]: "ready" }))
+        }
+      }
+    }
+
+    void checkStatuses()
+    const needsPolling = outputTasks.some(t => artifactStatuses[t.nodeId] === "uploading" || !artifactStatuses[t.nodeId])
+    if (!needsPolling) return
+
+    const timer = setInterval(() => {
+      void checkStatuses()
+    }, 2000)
+    return () => { alive = false; clearInterval(timer) }
+  }, [runId, tasks, artifactStatuses])
 
   const [triggerList, setTriggerList] = useState<TriggerItem[]>([])
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
@@ -1496,26 +1523,34 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                             <span className="text-muted-foreground font-mono text-[11px] mr-1">
                               Showing {outputPreview.rows.length} of {outputPreview.total} rows
                             </span>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-6 px-2 text-[11px] flex items-center gap-1 font-mono hover:bg-muted"
-                              onClick={() => void handleDownloadTaskOutput(taskDetail, "csv")}
-                              title="Download node output as CSV"
-                            >
-                              <Download className="h-3 w-3 text-emerald-600" />
-                              <span>CSV</span>
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-6 px-2 text-[11px] flex items-center gap-1 font-mono hover:bg-muted"
-                              onClick={() => void handleDownloadTaskOutput(taskDetail, "json")}
-                              title="Download node output as JSON"
-                            >
-                              <Download className="h-3 w-3 text-blue-600" />
-                              <span>JSON</span>
-                            </Button>
+                            {taskDetail.nodeType === "data.output" && artifactStatuses[taskDetail.nodeId] === "uploading" ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled
+                                className="h-6 px-2 text-[11px] flex items-center gap-1 font-mono text-muted-foreground opacity-60 cursor-not-allowed"
+                                title="Uploading to Supabase..."
+                              >
+                                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                                <span>Uploading...</span>
+                              </Button>
+                            ) : (
+                              (() => {
+                                const fmt = getTaskOutputFormat(taskDetail)
+                                return (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 px-2 text-[11px] flex items-center gap-1 font-mono hover:bg-muted"
+                                    onClick={() => void handleDownloadTaskOutput(taskDetail, fmt)}
+                                    title={`Download node output as ${fmt.toUpperCase()}`}
+                                  >
+                                    <Download className="h-3 w-3 text-primary" />
+                                    <span>Download {fmt.toUpperCase()}</span>
+                                  </Button>
+                                )
+                              })()
+                            )}
                           </div>
                         </div>
                         <div className="border rounded overflow-auto max-h-52">
@@ -1581,16 +1616,23 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                           <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono">
                             <span>{t.nodeType}</span>
                             {t.nodeType === "data.output" && t.status === 3 && runId && (
-                              <button
-                                onClick={e => {
-                                  e.stopPropagation()
-                                  void downloadArtifact(runId, t.nodeId)
-                                }}
-                                className="text-emerald-600 hover:underline cursor-pointer flex items-center gap-1 font-mono text-[11px]"
-                              >
-                                <Download className="h-3 w-3" />
-                                <span>download</span>
-                              </button>
+                              artifactStatuses[t.nodeId] === "uploading" ? (
+                                <span className="text-muted-foreground flex items-center gap-1 font-mono text-[11px]">
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                  <span>uploading...</span>
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={e => {
+                                    e.stopPropagation()
+                                    void downloadArtifact(runId, t.nodeId)
+                                  }}
+                                  className="text-primary hover:underline cursor-pointer flex items-center gap-1 font-mono text-[11px]"
+                                >
+                                  <Download className="h-3 w-3" />
+                                  <span>download</span>
+                                </button>
+                              )
                             )}
                           </div>
                           {t.error && <p className="text-[10px] text-destructive truncate">{t.error}</p>}
@@ -1820,16 +1862,23 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                                 </button>
                               )}
                               {t.nodeType === "data.output" && t.status === 3 && runId && (
-                                <button
-                                  onClick={e => {
-                                    e.stopPropagation()
-                                    void downloadArtifact(runId, t.nodeId)
-                                  }}
-                                  className="text-emerald-600 hover:underline cursor-pointer flex items-center gap-1 font-mono text-[11px]"
-                                >
-                                  <Download className="h-3 w-3" />
-                                  <span>download</span>
-                                </button>
+                                artifactStatuses[t.nodeId] === "uploading" ? (
+                                  <span className="text-muted-foreground flex items-center gap-1 font-mono text-[11px]">
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    <span>uploading...</span>
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={e => {
+                                      e.stopPropagation()
+                                      void downloadArtifact(runId, t.nodeId)
+                                    }}
+                                    className="text-primary hover:underline cursor-pointer flex items-center gap-1 font-mono text-[11px]"
+                                  >
+                                    <Download className="h-3 w-3" />
+                                    <span>download</span>
+                                  </button>
+                                )
                               )}
                             </div>
                           </div>
@@ -1860,26 +1909,34 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                             Showing {outputPreview.rows.length} of {outputPreview.total} rows
                           </span>
                         )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-6 px-2 text-[11px] flex items-center gap-1 font-mono hover:bg-muted"
-                          onClick={() => void handleDownloadTaskOutput(taskDetail, "csv")}
-                          title="Download as CSV"
-                        >
-                          <Download className="h-3 w-3 text-emerald-600" />
-                          <span>CSV</span>
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-6 px-2 text-[11px] flex items-center gap-1 font-mono hover:bg-muted"
-                          onClick={() => void handleDownloadTaskOutput(taskDetail, "json")}
-                          title="Download as JSON"
-                        >
-                          <Download className="h-3 w-3 text-blue-600" />
-                          <span>JSON</span>
-                        </Button>
+                        {taskDetail.nodeType === "data.output" && artifactStatuses[taskDetail.nodeId] === "uploading" ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled
+                            className="h-6 px-2 text-[11px] flex items-center gap-1 font-mono text-muted-foreground opacity-60 cursor-not-allowed"
+                            title="Uploading to Supabase..."
+                          >
+                            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                            <span>Uploading...</span>
+                          </Button>
+                        ) : (
+                          (() => {
+                            const fmt = getTaskOutputFormat(taskDetail)
+                            return (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 px-2 text-[11px] flex items-center gap-1 font-mono hover:bg-muted"
+                                onClick={() => void handleDownloadTaskOutput(taskDetail, fmt)}
+                                title={`Download as ${fmt.toUpperCase()}`}
+                              >
+                                <Download className="h-3 w-3 text-primary" />
+                                <span>Download {fmt.toUpperCase()}</span>
+                              </Button>
+                            )
+                          })()
+                        )}
                       </div>
                     </div>
 

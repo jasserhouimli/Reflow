@@ -91,6 +91,22 @@ public sealed class LocalArtifactStore : IDataArtifactStore
         return match is null ? null : await ReadDataFile(match.FullName, ct);
     }
 
+    public Task<string> GetStatusAsync(
+        Guid runId,
+        string nodeId,
+        CancellationToken ct = default)
+    {
+        var dir = Path.Combine(_root, runId.ToString("N"));
+        if (!Directory.Exists(dir))
+            return Task.FromResult("none");
+
+        var safeNode = MakeSafe(nodeId);
+        var match = Directory.GetFiles(dir)
+            .Any(f => IsDataFile(f) && Path.GetFileName(f).StartsWith(safeNode + ".", StringComparison.OrdinalIgnoreCase));
+
+        return Task.FromResult(match ? "ready" : "none");
+    }
+
     private static bool IsDataFile(string path)
     {
         var ext = Path.GetExtension(path);

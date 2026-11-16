@@ -9,6 +9,8 @@ namespace Reflow.Modules.DataProcessing.Artifacts;
 
 public sealed class SupabaseArtifactStore : IDataArtifactStore
 {
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _statusTracker = new();
+
     private readonly IHttpClientFactory _clientFactory;
     private readonly IDataWriter _writer;
     private readonly StorageOptions _options;
@@ -60,41 +62,68 @@ public sealed class SupabaseArtifactStore : IDataArtifactStore
             _logger.LogWarning(ex, "Failed to save local artifact cache for run {RunId}, node {NodeId}", runId, nodeId);
         }
 
-        // Upload to Supabase Storage REST API
+        // Asynchronously upload to Supabase Storage in the background without blocking node completion
         if (!string.IsNullOrWhiteSpace(_options.SupabaseUrl) && !string.IsNullOrWhiteSpace(_options.SupabaseKey))
         {
-            try
-            {
-                var client = _clientFactory.CreateClient();
-                var baseUrl = SanitizeBaseUrl(_options.SupabaseUrl);
-                var bucket = GetBucket();
-                var objectPath = $"{runId:N}/{actualName}";
-                var uploadUrl = $"{baseUrl}/storage/v1/object/{bucket}/{objectPath}";
+            var trackerKey = $"{runId:N}:{nodeId}";
+            _statusTracker[trackerKey] = "uploading";
 
-                using var request = new HttpRequestMessage(HttpMethod.Post, uploadUrl);
-                ApplyAuthHeaders(request, _options.SupabaseKey);
-                request.Headers.Add("x-upsert", "true");
-                request.Content = new ByteArrayContent(bytes);
-                request.Content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+            var baseUrl = SanitizeBaseUrl(_options.SupabaseUrl);
+            var bucket = GetBucket();
+            var objectPath = $"{runId:N}/{actualName}";
+            var uploadUrl = $"{baseUrl}/storage/v1/object/{bucket}/{objectPath}";
+            var key = _options.SupabaseKey;
 
-                var response = await client.SendAsync(request, ct);
-                if (!response.IsSuccessStatusCode)
-                {
-                    var errorBody = await response.Content.ReadAsStringAsync(ct);
-                    _logger.LogWarning("Supabase Storage upload failed with {StatusCode}: {Body}", response.StatusCode, errorBody);
-                }
-                else
-                {
-                    _logger.LogInformation("Successfully uploaded artifact {ObjectPath} to Supabase bucket '{Bucket}'", objectPath, bucket);
-                }
-            }
-            catch (Exception ex)
+            _ = Task.Run(async () =>
             {
-                _logger.LogWarning(ex, "Failed to upload artifact to Supabase Storage for run {RunId}", runId);
-            }
+                try
+                {
+                    var client = _clientFactory.CreateClient();
+                    using var request = new HttpRequestMessage(HttpMethod.Post, uploadUrl);
+                    ApplyAuthHeaders(request, key);
+                    request.Headers.Add("x-upsert", "true");
+                    request.Content = new ByteArrayContent(bytes);
+                    request.Content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+
+                    var response = await client.SendAsync(request, CancellationToken.None);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var errorBody = await response.Content.ReadAsStringAsync();
+                        _statusTracker[trackerKey] = "failed";
+                        _logger.LogWarning("Supabase Storage upload failed with {StatusCode}: {Body}", response.StatusCode, errorBody);
+                    }
+                    else
+                    {
+                        _statusTracker[trackerKey] = "ready";
+                        _logger.LogInformation("Successfully uploaded artifact {ObjectPath} to Supabase bucket '{Bucket}'", objectPath, bucket);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _statusTracker[trackerKey] = "failed";
+                    _logger.LogWarning(ex, "Failed to upload artifact to Supabase Storage for run {RunId}", runId);
+                }
+            });
         }
 
         return new ArtifactInfo(actualName, bytes.Length, frame.RowCount, checksum);
+    }
+
+    public async Task<string> GetStatusAsync(
+        Guid runId,
+        string nodeId,
+        CancellationToken ct = default)
+    {
+        if (!string.IsNullOrWhiteSpace(_options.SupabaseUrl) && !string.IsNullOrWhiteSpace(_options.SupabaseKey))
+        {
+            var trackerKey = $"{runId:N}:{nodeId}";
+            if (_statusTracker.TryGetValue(trackerKey, out var tracked))
+            {
+                return tracked;
+            }
+        }
+
+        return await _fallback.GetStatusAsync(runId, nodeId, ct);
     }
 
     public async Task<(string Content, string ContentType, string FileName)?> LoadAsync(
