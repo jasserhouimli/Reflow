@@ -60,14 +60,14 @@ public sealed class SupabaseArtifactStore : IDataArtifactStore
             _logger.LogWarning(ex, "Failed to save local artifact cache for run {RunId}, node {NodeId}", runId, nodeId);
         }
 
-        // Upload to Supabase Storage
+        // Upload to Supabase Storage REST API
         if (!string.IsNullOrWhiteSpace(_options.SupabaseUrl) && !string.IsNullOrWhiteSpace(_options.SupabaseKey))
         {
             try
             {
                 var client = _clientFactory.CreateClient();
-                var baseUrl = _options.SupabaseUrl.TrimEnd('/');
-                var bucket = string.IsNullOrWhiteSpace(_options.Bucket) ? "artifacts" : _options.Bucket;
+                var baseUrl = SanitizeBaseUrl(_options.SupabaseUrl);
+                var bucket = GetBucket();
                 var objectPath = $"{runId:N}/{actualName}";
                 var uploadUrl = $"{baseUrl}/storage/v1/object/{bucket}/{objectPath}";
 
@@ -109,8 +109,8 @@ public sealed class SupabaseArtifactStore : IDataArtifactStore
             try
             {
                 var client = _clientFactory.CreateClient();
-                var baseUrl = _options.SupabaseUrl.TrimEnd('/');
-                var bucket = string.IsNullOrWhiteSpace(_options.Bucket) ? "artifacts" : _options.Bucket;
+                var baseUrl = SanitizeBaseUrl(_options.SupabaseUrl);
+                var bucket = GetBucket();
                 var safeNode = MakeSafe(nodeId);
 
                 // Check possible file extensions
@@ -118,16 +118,28 @@ public sealed class SupabaseArtifactStore : IDataArtifactStore
                 {
                     var actualName = safeNode + ext;
                     var objectPath = $"{runId:N}/{actualName}";
-                    var downloadUrl = $"{baseUrl}/storage/v1/object/authenticated/{bucket}/{objectPath}";
 
-                    using var request = new HttpRequestMessage(HttpMethod.Get, downloadUrl);
-                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.SupabaseKey);
-                    request.Headers.Add("apikey", _options.SupabaseKey);
+                    // 1. Try authenticated endpoint
+                    var authUrl = $"{baseUrl}/storage/v1/object/authenticated/{bucket}/{objectPath}";
+                    using var authReq = new HttpRequestMessage(HttpMethod.Get, authUrl);
+                    authReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.SupabaseKey);
+                    authReq.Headers.Add("apikey", _options.SupabaseKey);
 
-                    var response = await client.SendAsync(request, ct);
-                    if (response.IsSuccessStatusCode)
+                    var authRes = await client.SendAsync(authReq, ct);
+                    if (authRes.IsSuccessStatusCode)
                     {
-                        var content = await response.Content.ReadAsStringAsync(ct);
+                        var content = await authRes.Content.ReadAsStringAsync(ct);
+                        var contentType = ext == ".csv" ? "text/csv" : "application/json";
+                        return (content, contentType, actualName);
+                    }
+
+                    // 2. Fallback to public endpoint if bucket is public
+                    var pubUrl = $"{baseUrl}/storage/v1/object/public/{bucket}/{objectPath}";
+                    using var pubReq = new HttpRequestMessage(HttpMethod.Get, pubUrl);
+                    var pubRes = await client.SendAsync(pubReq, ct);
+                    if (pubRes.IsSuccessStatusCode)
+                    {
+                        var content = await pubRes.Content.ReadAsStringAsync(ct);
                         var contentType = ext == ".csv" ? "text/csv" : "application/json";
                         return (content, contentType, actualName);
                     }
@@ -141,6 +153,25 @@ public sealed class SupabaseArtifactStore : IDataArtifactStore
 
         // Fallback to local store
         return await _fallback.LoadAsync(runId, nodeId, ct);
+    }
+
+    private string GetBucket() =>
+        string.IsNullOrWhiteSpace(_options.Bucket) ? "artifacts" : _options.Bucket.Trim('/');
+
+    public static string SanitizeBaseUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return string.Empty;
+        var trimmed = url.Trim();
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
+        {
+            return uri.GetLeftPart(UriPartial.Authority).TrimEnd('/');
+        }
+        var s = trimmed.TrimEnd('/');
+        if (s.EndsWith("/storage/v1/s3", StringComparison.OrdinalIgnoreCase))
+            s = s[..^"/storage/v1/s3".Length];
+        else if (s.EndsWith("/storage/v1", StringComparison.OrdinalIgnoreCase))
+            s = s[..^"/storage/v1".Length];
+        return s.TrimEnd('/');
     }
 
     private static string MakeSafe(string s) =>
