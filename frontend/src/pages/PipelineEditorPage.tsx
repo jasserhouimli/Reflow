@@ -16,6 +16,7 @@ import {
 import { subscribeToRun } from "@/api/realtime"
 import { ScheduleDialog } from "@/components/ScheduleDialog"
 import { WebhookDialog } from "@/components/WebhookDialog"
+import { EditorAiDialog } from "@/components/EditorAiDialog"
 import { cronToHuman } from "@/lib/cronHelper"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,6 +26,7 @@ import {
   ChevronUp,
   ChevronDown,
   Table,
+  Sparkles,
 } from "lucide-react"
 
 interface Props {
@@ -454,6 +456,67 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
   const [triggerList, setTriggerList] = useState<TriggerItem[]>([])
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
   const [webhookDialogOpen, setWebhookDialogOpen] = useState(false)
+  const [aiDialogOpen, setAiDialogOpen] = useState(false)
+
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault()
+        setAiDialogOpen(prev => !prev)
+      }
+    }
+    window.addEventListener("keydown", handleGlobalKey)
+    return () => window.removeEventListener("keydown", handleGlobalKey)
+  }, [])
+
+  const handleApplyAiDraft = (newNodes: Node[], newEdges: Edge[], mode: "replace" | "append") => {
+    if (mode === "replace") {
+      setNodes(newNodes)
+      setEdges(newEdges)
+      say(`Replaced canvas with ${newNodes.length} AI-generated nodes`)
+    } else {
+      const existingIds = new Set(nodes.map(n => n.id))
+      const idMap = new Map<string, string>()
+      const maxX = nodes.reduce((max, n) => Math.max(max, n.position.x), 0)
+      const offsetX = nodes.length > 0 ? maxX + 320 : 0
+
+      const mappedNodes: Node[] = newNodes.map(n => {
+        let uniqueId = n.id
+        let counter = 1
+        while (existingIds.has(uniqueId)) {
+          counter++
+          uniqueId = `${n.id}_${counter}`
+        }
+        existingIds.add(uniqueId)
+        idMap.set(n.id, uniqueId)
+
+        return {
+          ...n,
+          id: uniqueId,
+          position: { x: n.position.x + offsetX, y: n.position.y },
+          data: {
+            ...n.data,
+            label: n.data.label === n.id ? uniqueId : n.data.label,
+          },
+        }
+      })
+
+      const mappedEdges: Edge[] = newEdges.map(e => {
+        const newSource = idMap.get(e.source) ?? e.source
+        const newTarget = idMap.get(e.target) ?? e.target
+        return {
+          ...e,
+          id: `e-${newSource}-${newTarget}`,
+          source: newSource,
+          target: newTarget,
+        }
+      })
+
+      setNodes(prev => [...prev, ...mappedNodes])
+      setEdges(prev => [...prev, ...mappedEdges])
+      say(`Added ${mappedNodes.length} nodes to canvas`)
+    }
+  }
 
   const say = (m: string) => { setMsg(m); setErr("") }
   const fail = (e: unknown) => { setErr(e instanceof Error ? e.message : "Failed"); setMsg("") }
@@ -817,6 +880,16 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
           {err && <span className="text-xs text-destructive font-medium px-2">{err}</span>}
           <Button size="sm" variant={dirty ? "default" : "outline"} className="h-8 text-xs font-medium" onClick={save}>
             Save
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs font-medium gap-1.5 border-blue-500/30 hover:border-blue-500/60 hover:bg-blue-500/5 text-foreground"
+            onClick={() => setAiDialogOpen(true)}
+            title="Generate or extend workflow using AI (Ctrl+K)"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-blue-500" />
+            AI Assistant
           </Button>
           <Button size="sm" variant="outline" className="h-8 text-xs font-medium gap-1.5" onClick={async () => {
             try {
@@ -1677,6 +1750,14 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
           reload()
           return res
         }}
+      />
+
+      <EditorAiDialog
+        isOpen={aiDialogOpen}
+        onClose={() => setAiDialogOpen(false)}
+        existingNodesCount={nodes.length}
+        defs={defs}
+        onApply={handleApplyAiDraft}
       />
     </div>
   )

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { pipelines, PIPELINE_STATUSES, type Pipeline } from "@/api/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { GenerateWithAiDialog } from "@/components/GenerateWithAiDialog"
+import { EditorAiDialog } from "@/components/EditorAiDialog"
 import {
   Workflow,
   Plus,
@@ -286,11 +286,33 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
 
       {/* AI Generator Modal */}
       {showAi && (
-        <GenerateWithAiDialog
+        <EditorAiDialog
+          isOpen={showAi}
           onClose={() => setShowAi(false)}
-          onCreated={id => {
-            setShowAi(false)
-            onSelectPipeline(id)
+          existingNodesCount={0}
+          defs={[]}
+          onApply={async (nodes, edges) => {
+            try {
+              const id = await pipelines.create({ name: "AI Generated Pipeline" })
+              await pipelines.update(id, {
+                nodes: nodes.map(n => ({
+                  nodeId: n.id,
+                  nodeType: (n.data as { nodeType: string }).nodeType,
+                  configJson: (n.data as { configJson: string }).configJson || "{}",
+                  label: (n.data as { label?: string }).label ?? null,
+                  positionX: Math.round(n.position.x),
+                  positionY: Math.round(n.position.y),
+                })),
+                edges: edges.map(e => ({
+                  sourceNodeId: e.source,
+                  targetNodeId: e.target,
+                })),
+              })
+              setShowAi(false)
+              onSelectPipeline(id)
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Failed to create pipeline from AI draft")
+            }
           }}
         />
       )}
