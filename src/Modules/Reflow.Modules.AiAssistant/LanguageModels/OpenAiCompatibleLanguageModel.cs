@@ -17,6 +17,13 @@ public sealed class OpenAiCompatibleLanguageModel(
         string systemPrompt, string userPrompt, CancellationToken ct)
     {
         var settings = options.Value;
+
+        if (settings.ApiKey == "dev-mock-key" || settings.ApiKey == "mock")
+        {
+            await Task.Delay(400, ct);
+            return GenerateLocalMockResponse(userPrompt);
+        }
+
         var endpoint = $"{settings.BaseUrl.TrimEnd('/')}/chat/completions";
         var maxAttempts = Math.Max(0, settings.MaxTransientRetries) + 1;
 
@@ -55,6 +62,69 @@ public sealed class OpenAiCompatibleLanguageModel(
             throw new LanguageModelException(
                 (int)response.StatusCode, "The AI provider rejected the request.");
         }
+    }
+
+    private static string GenerateLocalMockResponse(string userPrompt)
+    {
+        var p = userPrompt.ToLowerInvariant();
+        if (p.Contains("join") || p.Contains("customer"))
+        {
+            return """
+            {
+              "name": "Customer Orders Join",
+              "explanation": "Loads customer data, reads orders, joins on customer_id, and calculates total purchases",
+              "nodes": [
+                { "nodeId": "customers", "nodeType": "json.read", "label": "Customers JSON", "config": { "jsonText": "[{\"customer_id\": 1, \"name\": \"Acme Corp\", \"tier\": \"enterprise\"}, {\"customer_id\": 2, \"name\": \"Globex\", \"tier\": \"standard\"}]" } },
+                { "nodeId": "orders", "nodeType": "csv.read", "label": "Orders CSV", "config": { "csvText": "order_id,customer_id,amount\n101,1,250.00\n102,1,450.00\n103,2,120.00" } },
+                { "nodeId": "join_report", "nodeType": "data.sql", "label": "Customer Spend Summary", "config": { "query": "SELECT c.name, c.tier, SUM(CAST(o.amount AS DOUBLE)) AS total_spent FROM customers c JOIN orders o ON c.customer_id = o.customer_id GROUP BY c.name, c.tier ORDER BY total_spent DESC" } },
+                { "nodeId": "output", "nodeType": "data.output", "label": "Output Artifact", "config": { "format": "json" } }
+              ],
+              "edges": [
+                { "sourceNodeId": "customers", "targetNodeId": "join_report" },
+                { "sourceNodeId": "orders", "targetNodeId": "join_report" },
+                { "sourceNodeId": "join_report", "targetNodeId": "output" }
+              ],
+              "warnings": ["Joined customers and orders on customer_id using DuckDB relational engine"]
+            }
+            """;
+        }
+
+        if (p.Contains("webhook"))
+        {
+            return """
+            {
+              "name": "Webhook Ingestion Flow",
+              "explanation": "Receives inbound webhook events, filters valid records, and writes to an artifact sink",
+              "nodes": [
+                { "nodeId": "webhook_event", "nodeType": "trigger.payload", "label": "Webhook Inbound Payload", "config": {} },
+                { "nodeId": "clean_event", "nodeType": "data.sql", "label": "Filter & Normalize Payload", "config": { "query": "SELECT event_id, event_type, payload FROM webhook_event WHERE event_type IS NOT NULL" } },
+                { "nodeId": "output_sink", "nodeType": "data.output", "label": "Store Normalized Events", "config": { "format": "json" } }
+              ],
+              "edges": [
+                { "sourceNodeId": "webhook_event", "targetNodeId": "clean_event" },
+                { "sourceNodeId": "clean_event", "targetNodeId": "output_sink" }
+              ],
+              "warnings": ["Configured trigger payload extraction for incoming webhook POST requests"]
+            }
+            """;
+        }
+
+        return """
+        {
+          "name": "Sales & Revenue Analysis",
+          "explanation": "Reads order transactions, filters regions, and calculates aggregated revenue per country",
+          "nodes": [
+            { "nodeId": "orders", "nodeType": "csv.read", "label": "Orders CSV", "config": { "csvText": "country,amount,date\nFR,120,2026-01-01\nDE,35,2026-01-02\nFR,200,2026-01-03\nUS,50,2026-01-03\nUK,180,2026-01-04" } },
+            { "nodeId": "revenue_calc", "nodeType": "data.sql", "label": "Country Revenue Aggregation", "config": { "query": "SELECT country, COUNT(*) as order_count, SUM(CAST(amount AS DOUBLE)) AS total_revenue FROM orders GROUP BY country ORDER BY total_revenue DESC" } },
+            { "nodeId": "revenue_report", "nodeType": "data.output", "label": "Revenue Output", "config": { "format": "csv" } }
+          ],
+          "edges": [
+            { "sourceNodeId": "orders", "targetNodeId": "revenue_calc" },
+            { "sourceNodeId": "revenue_calc", "targetNodeId": "revenue_report" }
+          ],
+          "warnings": ["Assumed standard comma-separated numeric amount column"]
+        }
+        """;
     }
 
     private static string ParseCompletion(string body)
