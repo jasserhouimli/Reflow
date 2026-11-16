@@ -37,6 +37,21 @@ public class SqlNodeTests
     }
 
     [Fact]
+    public void Engine_AutoCastsVarcharInSumAndAvg_WhenNoExplicitCastProvided()
+    {
+        ISqlEngine engine = new DuckDbSqlEngine();
+        // Without explicit CAST(amount AS DOUBLE), DuckDB would throw Binder Error 'sum(VARCHAR)'.
+        // Engine automatically falls back to TRY_CAST(amount AS DOUBLE).
+        var result = engine.Query(
+            new[] { ("input", Table()) },
+            "SELECT country, SUM(amount) AS total, AVG(amount) AS average FROM input GROUP BY country ORDER BY country");
+        Assert.Equal(new[] { "country", "total", "average" }, result.Columns);
+        Assert.Equal(2, result.RowCount);
+        Assert.Equal("5", result.Rows[0][1]); // DE has 5
+        Assert.Equal("30", result.Rows[1][1]); // FR has 10 + 20 = 30
+    }
+
+    [Fact]
     public void Engine_JoinsTwoTables()
     {
         ISqlEngine engine = new DuckDbSqlEngine();

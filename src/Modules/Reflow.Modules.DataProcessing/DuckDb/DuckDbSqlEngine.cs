@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using DuckDB.NET.Data;
 using Reflow.Modules.DataProcessing.Abstractions;
 
@@ -7,6 +8,11 @@ public sealed class DuckDbSqlEngine : ISqlEngine
 {
     private const int InsertBatchRows = 500;
 
+    private static readonly Regex UncastAggregationRegex = new(
+        @"\b(?<fn>sum|avg)\s*\(\s*(?!(?:cast|try_cast)\b)(?:(?<dist>distinct)\s+)?(?<col>[a-zA-Z_][a-zA-Z0-9_\.]*)\s*\)",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+        TimeSpan.FromMilliseconds(200));
+
     public Frame Query(IReadOnlyList<(string Name, Frame Frame)> tables, string sql)
     {
         if (string.IsNullOrWhiteSpace(sql))
@@ -14,6 +20,18 @@ public sealed class DuckDbSqlEngine : ISqlEngine
         if (tables.Count > 8)
             throw new InvalidOperationException("At most 8 input tables are allowed");
 
+        try
+        {
+            return ExecuteQuery(tables, sql);
+        }
+        catch (Exception ex) when (IsVarcharAggregationError(ex) && TryAutoCastVarcharAggregations(sql, out var rewrittenSql))
+        {
+            return ExecuteQuery(tables, rewrittenSql);
+        }
+    }
+
+    private static Frame ExecuteQuery(IReadOnlyList<(string Name, Frame Frame)> tables, string sql)
+    {
         using var connection = new DuckDBConnection("Data Source=:memory:");
         connection.Open();
 
@@ -44,6 +62,30 @@ public sealed class DuckDbSqlEngine : ISqlEngine
                 throw new InvalidOperationException($"Query returned too many rows (max {Frame.MaxRows})");
         }
         return result;
+    }
+
+    private static bool IsVarcharAggregationError(Exception ex) =>
+        ex.Message.Contains("No function matches the given name and argument types", StringComparison.OrdinalIgnoreCase)
+        && (ex.Message.Contains("sum(VARCHAR)", StringComparison.OrdinalIgnoreCase)
+            || ex.Message.Contains("avg(VARCHAR)", StringComparison.OrdinalIgnoreCase));
+
+    private static bool TryAutoCastVarcharAggregations(string sql, out string rewrittenSql)
+    {
+        if (!UncastAggregationRegex.IsMatch(sql))
+        {
+            rewrittenSql = sql;
+            return false;
+        }
+
+        rewrittenSql = UncastAggregationRegex.Replace(sql, match =>
+        {
+            var fn = match.Groups["fn"].Value;
+            var dist = match.Groups["dist"].Success ? "DISTINCT " : "";
+            var col = match.Groups["col"].Value;
+            return $"{fn}({dist}TRY_CAST({col} AS DOUBLE))";
+        });
+
+        return !string.Equals(sql, rewrittenSql, StringComparison.Ordinal);
     }
 
     private static void LoadTable(DuckDBConnection connection, string name, Frame frame)
