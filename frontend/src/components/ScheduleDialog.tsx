@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { X, Clock } from "lucide-react"
 import {
   type Frequency,
   COMMON_TIMEZONES,
@@ -84,24 +85,29 @@ export function ScheduleDialog({ isOpen, onClose, onSave }: Props) {
   const timezones = Array.from(new Set([timezone, ...COMMON_TIMEZONES])).sort()
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-overlay-fade">
       <div
         role="dialog"
         aria-modal="true"
-        className="w-full max-w-md rounded-lg border bg-background p-5 shadow-xl space-y-4"
+        className="w-full max-w-md rounded-xl border border-border/80 bg-card/95 p-5 shadow-2xl space-y-4 animate-dialog-pop"
       >
         <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-base font-semibold">Add Automated Schedule</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Run this pipeline automatically on a recurring schedule.
-            </p>
+          <div className="flex items-center gap-2.5">
+            <div className="h-7 w-7 rounded-md bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shadow-xs">
+              <Clock className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold tracking-tight text-foreground">Add Automated Schedule</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Run this pipeline automatically on a recurring schedule.
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground text-sm font-mono px-1.5 py-0.5 rounded"
+            className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted group cursor-pointer transition-colors"
           >
-            ✕
+            <X className="h-4 w-4 transition-transform duration-150 group-hover:rotate-90" />
           </button>
         </div>
 

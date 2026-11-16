@@ -204,28 +204,34 @@ export function EditorAiDialog({
   const selectedNodeData = draft?.nodes.find(n => n.nodeId === selectedPreviewNodeId)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-0 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-overlay-fade">
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Generate Workflow with AI"
-        className="w-full max-w-4xl max-h-[90vh] flex flex-col rounded-xl border bg-card shadow-2xl overflow-hidden"
+        className="w-full max-w-4xl max-h-[90vh] flex flex-col rounded-xl border border-border/80 bg-card/95 shadow-2xl overflow-hidden animate-dialog-pop"
       >
         {/* Header */}
-        <div className="px-5 py-3.5 border-b flex items-center justify-between bg-muted/20">
+        <div className="px-5 py-3.5 border-b border-border/70 flex items-center justify-between bg-muted/20">
           <div className="flex items-center gap-2.5">
-            <div className="h-7 w-7 rounded-md bg-foreground text-background flex items-center justify-center">
+            <div className="h-7 w-7 rounded-md bg-primary text-primary-foreground flex items-center justify-center shadow-xs">
               <Sparkles className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold tracking-tight">AI Workflow Assistant</h2>
+              <h2 className="text-sm font-semibold tracking-tight text-foreground">AI Workflow Assistant</h2>
               <p className="text-[11px] text-muted-foreground">
                 Describe the workflow logic. Preview nodes & edges before applying to canvas.
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose} disabled={busy} className="h-7 w-7 p-0">
-            <X className="h-4 w-4" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            disabled={busy}
+            className="h-7 w-7 p-0 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground group cursor-pointer"
+          >
+            <X className="h-4 w-4 transition-transform duration-150 group-hover:rotate-90" />
           </Button>
         </div>
 

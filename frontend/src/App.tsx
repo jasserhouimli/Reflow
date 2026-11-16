@@ -3,6 +3,46 @@ import { auth } from "@/api/client"
 import { LoginPage } from "@/pages/LoginPage"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { PipelineEditorPage } from "@/pages/PipelineEditorPage"
+import { Skeleton } from "@/components/ui/skeleton"
+
+function WorkspaceBootSkeleton() {
+  return (
+    <div className="min-h-screen bg-background flex flex-col bg-dot-grid">
+      <header className="border-b bg-card/80 backdrop-blur-md px-6 py-3 flex items-center justify-between sticky top-0 z-10">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-7 w-7 rounded-md" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-6 w-36 rounded-md" />
+          <Skeleton className="h-6 w-16 rounded-md" />
+        </div>
+      </header>
+      <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-8 space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-44" />
+            <Skeleton className="h-3.5 w-72" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-8 w-24 rounded-md" />
+            <Skeleton className="h-8 w-28 rounded-md" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Skeleton className="h-20 rounded-lg" />
+          <Skeleton className="h-20 rounded-lg" />
+          <Skeleton className="h-20 rounded-lg" />
+        </div>
+        <div className="space-y-2.5 pt-2">
+          <Skeleton className="h-16 rounded-lg" />
+          <Skeleton className="h-16 rounded-lg" />
+          <Skeleton className="h-16 rounded-lg" />
+        </div>
+      </main>
+    </div>
+  )
+}
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null }
@@ -45,7 +85,7 @@ export default function App() {
     setSelectedPipeline(null)
   }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+  if (loading) return <WorkspaceBootSkeleton />
 
   if (!user) return <LoginPage onLogin={() => auth.me().then(setUser)} />
 

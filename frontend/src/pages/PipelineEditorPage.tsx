@@ -20,6 +20,7 @@ import { EditorAiDialog } from "@/components/EditorAiDialog"
 import { cronToHuman } from "@/lib/cronHelper"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Play,
   Terminal,
@@ -801,7 +802,47 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
     } catch { return null }
   })() : null
 
-  if (!detail) return <div className="p-8">Loading... {err && <p className="text-destructive">{err}</p>}</div>
+  if (!detail) {
+    return (
+      <div className="h-screen flex flex-col bg-background text-foreground bg-dot-grid">
+        <div className="flex items-center justify-between px-4 py-2 border-b bg-card/85 backdrop-blur-md shrink-0">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground" onClick={onBack}>
+              ←
+            </Button>
+            <Skeleton className="h-5 w-44 rounded" />
+            <Skeleton className="h-4 w-16 rounded-full" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-8 w-24 rounded-md" />
+            <Skeleton className="h-8 w-20 rounded-md" />
+          </div>
+        </div>
+        <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 flex items-center justify-center relative">
+            {err ? (
+              <p className="text-destructive text-xs bg-destructive/10 border border-destructive/20 p-4 rounded-lg">
+                {err}
+              </p>
+            ) : (
+              <div className="text-center space-y-3">
+                <Skeleton className="h-12 w-12 rounded-xl mx-auto" />
+                <Skeleton className="h-3.5 w-48 mx-auto rounded" />
+              </div>
+            )}
+          </div>
+          <div className="w-80 border-l border-border/80 bg-card/60 p-4 space-y-3 hidden md:block">
+            <Skeleton className="h-4 w-28 rounded" />
+            <div className="space-y-2 pt-2">
+              <Skeleton className="h-14 rounded-lg" />
+              <Skeleton className="h-14 rounded-lg" />
+              <Skeleton className="h-14 rounded-lg" />
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="h-screen flex flex-col bg-background text-foreground">

@@ -131,16 +131,19 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <Card className="w-full max-w-[390px] border-border/80 bg-card/95 shadow-sm">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background bg-dot-grid relative overflow-hidden">
+      {/* Subtle ambient glow behind card */}
+      <div className="absolute w-96 h-96 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+
+      <Card className="w-full max-w-[390px] border-border/80 bg-card/90 backdrop-blur-md shadow-2xl relative z-10 animate-dialog-pop">
         <CardHeader className="space-y-2 pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-md bg-foreground text-background flex items-center justify-center shadow-xs">
+              <div className="h-8 w-8 rounded-md bg-primary text-primary-foreground flex items-center justify-center shadow-xs">
                 <Workflow className="h-4 w-4" />
               </div>
               <div>
-                <CardTitle className="text-base font-semibold tracking-tight">Reflow</CardTitle>
+                <CardTitle className="text-base font-semibold tracking-tight text-foreground">Reflow</CardTitle>
                 <p className="text-[11px] text-muted-foreground font-mono">Real-time workflow engine</p>
               </div>
             </div>
