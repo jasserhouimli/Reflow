@@ -9,7 +9,7 @@ import "@xyflow/react/dist/style.css"
 import {
   pipelines, runs, triggers, nodeTypes, versions, files,
   downloadArtifact, exportRowsToFile, getArtifactStatus,
-  RUN_STATUSES, TASK_STATUSES,
+  TASK_STATUSES,
   type PipelineDetail, type PipelineEdge,
   type NodeDefinition, type PipelineRun, type TaskRun, type RunLog, type RunSnapshot, type TriggerItem,
   type TaskDetail, type TaskAttempt, type VersionDetail, type SourceFile,
@@ -49,6 +49,7 @@ import {
   Loader2,
   FileEdit,
   Download,
+  Clock,
 } from "lucide-react"
 
 interface Props {
@@ -401,6 +402,97 @@ function PipelineNodeView({ id, data, selected }: NodeProps) {
 }
 
 const nodeTypesMap = { pipelineNode: PipelineNodeView }
+
+function RunStatusBadge({ status, className = "" }: { status: number; className?: string }) {
+  switch (status) {
+    case 2: // Completed
+      return (
+        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-medium ${className}`}>
+          <Check className="h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <span>Completed</span>
+        </span>
+      )
+    case 3: // Failed
+      return (
+        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-400 font-medium ${className}`}>
+          <X className="h-2.5 w-2.5 text-rose-600 dark:text-rose-400 shrink-0" />
+          <span>Failed</span>
+        </span>
+      )
+    case 1: // Running
+      return (
+        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400 font-medium ${className}`}>
+          <Loader2 className="h-2.5 w-2.5 animate-spin text-blue-600 dark:text-blue-400 shrink-0" />
+          <span>Running</span>
+        </span>
+      )
+    case 4: // Cancelled
+      return (
+        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-border/60 bg-muted/40 text-muted-foreground font-medium ${className}`}>
+          <X className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+          <span>Cancelled</span>
+        </span>
+      )
+    case 0: // Queued
+    default:
+      return (
+        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 font-medium ${className}`}>
+          <Clock className="h-2.5 w-2.5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <span>Queued</span>
+        </span>
+      )
+  }
+}
+
+function TaskStatusBadge({ status, className = "" }: { status: number; className?: string }) {
+  switch (status) {
+    case 3: // Completed
+      return (
+        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-medium ${className}`}>
+          <Check className="h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <span>Completed</span>
+        </span>
+      )
+    case 4: // Failed
+      return (
+        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-400 font-medium ${className}`}>
+          <X className="h-2.5 w-2.5 text-rose-600 dark:text-rose-400 shrink-0" />
+          <span>Failed</span>
+        </span>
+      )
+    case 2: // Running
+      return (
+        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400 font-medium ${className}`}>
+          <Loader2 className="h-2.5 w-2.5 animate-spin text-blue-600 dark:text-blue-400 shrink-0" />
+          <span>Running</span>
+        </span>
+      )
+    case 5: // RetryScheduled
+      return (
+        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 font-medium ${className}`}>
+          <Clock className="h-2.5 w-2.5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <span>Retrying</span>
+        </span>
+      )
+    case 6: // Cancelled
+    case 7: // Skipped
+      return (
+        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-border/60 bg-muted/40 text-muted-foreground font-medium ${className}`}>
+          <X className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+          <span>{TASK_STATUSES[status] ?? "Skipped"}</span>
+        </span>
+      )
+    case 0: // Pending
+    case 1: // Ready
+    default:
+      return (
+        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-border/60 bg-muted/40 text-muted-foreground font-medium ${className}`}>
+          <Clock className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+          <span>{TASK_STATUSES[status] ?? "Pending"}</span>
+        </span>
+      )
+  }
+}
 
 const toFlow = (d: PipelineDetail, defs?: NodeDefinition[]): Node[] =>
   d.nodes.map(n => ({
@@ -1132,7 +1224,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
           >
             Runs & Logs
             {activeRun && activeRun.status < 2 && (
-              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              <Loader2 className="h-2.5 w-2.5 animate-spin text-blue-500" />
             )}
           </button>
           <button
@@ -1412,13 +1504,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
 
                 {activeRun && (
                   <div className="flex items-center gap-2 font-mono text-[11px]">
-                    <span className={`px-2 py-0.5 rounded-full font-medium ${
-                      activeRun.status === 2 ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400 animate-pulse" :
-                      activeRun.status === 3 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400" :
-                      activeRun.status === 4 ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400" : "bg-muted text-muted-foreground"
-                    }`}>
-                      {RUN_STATUSES[activeRun.status]}
-                    </span>
+                    <RunStatusBadge status={activeRun.status} className="text-[10px]" />
                     {activeRun.status < 2 ? (
                       <span className="text-blue-600 font-mono font-medium">
                         {Math.max(0, Math.round((now - parseUtcDate(activeRun.startedAt ?? activeRun.createdAt)) / 1000))}s
@@ -1605,13 +1691,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                         >
                           <div className="flex items-center justify-between">
                             <span className="font-mono font-medium text-xs text-foreground truncate">{t.nodeId}</span>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                              t.status === 3 ? "bg-emerald-100 text-emerald-700" :
-                              t.status === 4 ? "bg-rose-100 text-rose-700" :
-                              t.status === 2 ? "bg-blue-100 text-blue-700 animate-pulse" : "bg-muted text-muted-foreground"
-                            }`}>
-                              {TASK_STATUSES[t.status]}
-                            </span>
+                            <TaskStatusBadge status={t.status} className="text-[10px]" />
                           </div>
                           <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono">
                             <span>{t.nodeType}</span>
@@ -1745,14 +1825,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-semibold font-mono text-foreground">v{r.versionNumber}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                        r.status === 2 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400" :
-                        r.status === 3 ? "bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400" :
-                        r.status === 1 ? "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 animate-pulse" :
-                        "bg-muted text-muted-foreground"
-                      }`}>
-                        {RUN_STATUSES[r.status]}
-                      </span>
+                      <RunStatusBadge status={r.status} className="text-[10px]" />
                     </div>
                     <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                       <span className="capitalize">{r.triggerKind}</span>
@@ -1784,13 +1857,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-semibold">Run v{activeRun.versionNumber}</h3>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        activeRun.status === 2 ? "bg-emerald-100 text-emerald-700" :
-                        activeRun.status === 3 ? "bg-rose-100 text-rose-700" :
-                        activeRun.status === 1 ? "bg-blue-100 text-blue-700" : "bg-muted text-muted-foreground"
-                      }`}>
-                        {RUN_STATUSES[activeRun.status]}
-                      </span>
+                      <RunStatusBadge status={activeRun.status} className="text-xs px-2" />
                       <span className="text-xs text-muted-foreground font-mono">({activeRun.triggerKind} trigger)</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -1842,13 +1909,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                         >
                           <div className="flex items-center justify-between">
                             <span className="font-mono font-medium text-xs text-foreground truncate">{t.nodeId}</span>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                              t.status === 3 ? "bg-emerald-100 text-emerald-700" :
-                              t.status === 4 ? "bg-rose-100 text-rose-700" :
-                              t.status === 2 ? "bg-blue-100 text-blue-700 animate-pulse" : "bg-muted text-muted-foreground"
-                            }`}>
-                              {TASK_STATUSES[t.status]}
-                            </span>
+                            <TaskStatusBadge status={t.status} className="text-[10px]" />
                           </div>
                           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                             <span className="font-mono text-[10px]">{t.nodeType}</span>
@@ -1947,9 +2008,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                           {attempts.map(a => (
                             <span key={a.attemptNumber} className="text-[11px] font-mono px-2 py-0.5 rounded border bg-card flex items-center gap-1.5">
                               <span>#{a.attemptNumber}</span>
-                              <span className={a.status === 3 ? "text-emerald-600" : "text-rose-600"}>
-                                {TASK_STATUSES[a.status] ?? a.status}
-                              </span>
+                              <TaskStatusBadge status={a.status} className="text-[10px] py-0" />
                               {a.error && <span className="text-destructive truncate max-w-xs">({a.error})</span>}
                             </span>
                           ))}
@@ -2064,7 +2123,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                               reload()
                             } catch (e) { fail(e) }
                           }}
-                          className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
+                          className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
                             t.isEnabled ? "bg-emerald-600 border-emerald-600 text-white" : "border-muted-foreground/40 bg-transparent"
                           }`}
                           title={t.isEnabled ? "Enabled (click to pause)" : "Paused (click to activate)"}
