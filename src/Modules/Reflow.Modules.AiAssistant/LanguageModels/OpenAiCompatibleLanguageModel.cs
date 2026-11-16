@@ -34,8 +34,8 @@ public sealed class OpenAiCompatibleLanguageModel(
         var baseUrl = isGemini && (settings.BaseUrl.Contains("groq.com") || string.IsNullOrWhiteSpace(settings.BaseUrl))
             ? "https://generativelanguage.googleapis.com/v1beta/openai"
             : settings.BaseUrl;
-        var model = isGemini && (settings.Model.Contains("llama") || string.IsNullOrWhiteSpace(settings.Model))
-            ? "gemini-3.5-flash"
+        var model = isGemini && (settings.Model.Contains("llama") || settings.Model.Contains("2.5") || settings.Model.Contains("3.5") || string.IsNullOrWhiteSpace(settings.Model))
+            ? "gemini-3.1-flash-lite"
             : settings.Model;
 
         var endpoint = $"{baseUrl.TrimEnd('/')}/chat/completions";

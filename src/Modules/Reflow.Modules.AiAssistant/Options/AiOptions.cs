@@ -14,7 +14,7 @@ public sealed class AiOptions
     // Set via environment variable or user-secrets (e.g. Ai:ApiKey).
     public string ApiKey { get; set; } = string.Empty;
 
-    public int TimeoutSeconds { get; set; } = 30;
+    public int TimeoutSeconds { get; set; } = 60;
 
     // Retry transient HTTP 503 provider capacity errors.
     public int MaxTransientRetries { get; set; } = 1;
