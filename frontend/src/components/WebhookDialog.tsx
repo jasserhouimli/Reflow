@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { X } from "lucide-react"
 
 interface Props {
   isOpen: boolean
@@ -68,9 +69,10 @@ export function WebhookDialog({ isOpen, onClose, onCreate }: Props) {
           </div>
           <button
             onClick={handleClose}
-            className="text-muted-foreground hover:text-foreground text-sm font-mono px-1.5 py-0.5 rounded"
+            className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted transition-colors"
+            title="Close"
           >
-            ✕
+            <X className="h-4 w-4" />
           </button>
         </div>
 

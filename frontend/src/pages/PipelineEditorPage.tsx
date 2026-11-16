@@ -28,6 +28,9 @@ import {
   ChevronDown,
   Table,
   Sparkles,
+  ArrowLeft,
+  Check,
+  X,
 } from "lucide-react"
 
 interface Props {
@@ -323,13 +326,15 @@ function PipelineNodeView({ id, data, selected }: NodeProps) {
           </span>
         )}
         {isSuccess && (
-          <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 font-bold">
-            ✓ ok
+          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 font-medium">
+            <Check className="h-3 w-3" />
+            ok
           </span>
         )}
         {isFailed && (
-          <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400 font-bold">
-            ✕ error
+          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400 font-medium">
+            <X className="h-3 w-3" />
+            error
           </span>
         )}
         {isQueued && (
@@ -807,8 +812,8 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
       <div className="h-screen flex flex-col bg-background text-foreground">
         <div className="flex items-center justify-between px-4 py-2 border-b bg-card shrink-0">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground" onClick={onBack}>
-              ←
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground" onClick={onBack}>
+              <ArrowLeft className="h-4 w-4" />
             </Button>
             <Skeleton className="h-5 w-40 rounded" />
             <Skeleton className="h-4 w-14 rounded-full" />
@@ -850,8 +855,8 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
       <div className="flex items-center justify-between px-4 py-2 border-b bg-card shrink-0">
         {/* Left: Back + Name + Status */}
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-foreground" onClick={onBack} title="Back to Pipelines">
-            ←
+          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground" onClick={onBack} title="Back to Pipelines">
+            <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex items-center gap-2">
             <Input
@@ -866,8 +871,9 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
               {PIPELINE_STATUSES[detail.status]} · v{detail.currentVersion}
             </span>
             {dirty && (
-              <span className="text-[11px] text-amber-600 font-medium flex items-center gap-1">
-                ● unsaved
+              <span className="text-[11px] text-amber-600 font-medium flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                unsaved
               </span>
             )}
           </div>
@@ -1383,7 +1389,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
               })}
               {runList.length === 0 && (
                 <p className="text-xs text-muted-foreground text-center py-8">
-                  No runs yet. Click <strong>▶ Run Test</strong> in the header to run this pipeline.
+                  No runs yet. Click <span className="font-semibold text-foreground">Run Test</span> in the header to run this pipeline.
                 </p>
               )}
             </div>
@@ -1631,7 +1637,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                           }`}
                           title={t.isEnabled ? "Enabled (click to pause)" : "Paused (click to activate)"}
                         >
-                          {t.isEnabled && <span className="text-[9px] font-bold">✓</span>}
+                          {t.isEnabled && <Check className="h-2.5 w-2.5 text-white" />}
                         </button>
                       </td>
                       <td className="px-3 py-2.5 font-medium text-foreground">{t.name}</td>
