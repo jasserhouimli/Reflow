@@ -10,7 +10,7 @@ using Reflow.Modules.AiAssistant.Options;
 
 namespace Reflow.Modules.AiAssistant.Features.GenerateWorkflow;
 
-public sealed record GenerateWorkflowRequest(string Prompt);
+public sealed record GenerateWorkflowRequest(string Prompt, string? ApiKey = null);
 
 public sealed record GeneratedNodeDto(
     string NodeId, string NodeType, string? Label, JsonElement Config);
@@ -45,7 +45,7 @@ public sealed class GenerateWorkflowHandler(
         // real id without ever seeing content or another user's data.
         var availableFiles = await files.ListAsync(ownerId, ct);
 
-        var result = await generator.GenerateAsync(prompt, availableFiles, ct);
+        var result = await generator.GenerateAsync(prompt, availableFiles, request.ApiKey, ct);
         if (!result.IsSuccess)
             return Result<GenerateWorkflowResponse>.Failure(result.Error!, result.StatusCode);
 

@@ -163,10 +163,10 @@ export interface GeneratedWorkflowDraft {
 }
 
 export const assistant = {
-  generate: (prompt: string) =>
+  generate: (prompt: string, apiKey?: string | null) =>
     request<GeneratedWorkflowDraft>('/assistant/workflows/generate', {
       method: 'POST',
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({ prompt, apiKey: apiKey || undefined }),
     }),
 };
 

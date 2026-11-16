@@ -18,13 +18,23 @@ public sealed class WorkflowGenerator(
     IOptions<AiOptions> options,
     ILogger<WorkflowGenerator> logger)
 {
+    public Task<Result<WorkflowGeneration>> GenerateAsync(
+        string request,
+        IReadOnlyList<SourceFileRef> files,
+        CancellationToken ct) =>
+        GenerateAsync(request, files, null, ct);
+
     public async Task<Result<WorkflowGeneration>> GenerateAsync(
         string request,
         IReadOnlyList<SourceFileRef> files,
+        string? apiKeyOverride,
         CancellationToken ct)
     {
         var settings = options.Value;
-        if (!settings.IsConfigured)
+        var effectiveApiKey = !string.IsNullOrWhiteSpace(apiKeyOverride) ? apiKeyOverride.Trim() : settings.ApiKey;
+        var isConfigured = !string.IsNullOrWhiteSpace(effectiveApiKey) && (settings.Enabled || !string.IsNullOrWhiteSpace(apiKeyOverride));
+
+        if (!isConfigured)
             return Result<WorkflowGeneration>.Failure("AI features are not configured", 503);
 
         var correlationId = Guid.NewGuid().ToString("N")[..12];
@@ -40,7 +50,7 @@ public sealed class WorkflowGenerator(
             string raw;
             try
             {
-                raw = await model.CompleteJsonAsync(systemPrompt, userPrompt, ct);
+                raw = await model.CompleteJsonAsync(systemPrompt, userPrompt, effectiveApiKey, ct);
             }
             catch (LanguageModelException ex) when (ex.StatusCode == 429)
             {

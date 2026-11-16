@@ -14,7 +14,8 @@ import {
 import "@xyflow/react/dist/style.css"
 import { assistant, type GeneratedWorkflowDraft, type NodeDefinition } from "@/api/client"
 import { Button } from "@/components/ui/button"
-import { Sparkles, X, Plus, RefreshCw, AlertCircle, Check, Code, Eye } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Sparkles, X, Plus, RefreshCw, AlertCircle, Check, Code, Eye, Key } from "lucide-react"
 
 interface EditorAiDialogProps {
   isOpen: boolean
@@ -71,6 +72,17 @@ export function EditorAiDialog({
   const [error, setError] = useState("")
   const [draft, setDraft] = useState<GeneratedWorkflowDraft | null>(null)
   const [selectedPreviewNodeId, setSelectedPreviewNodeId] = useState<string | null>(null)
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem("reflow_ai_api_key") || "")
+  const [showKeySettings, setShowKeySettings] = useState(false)
+
+  const handleApiKeyChange = (val: string) => {
+    setApiKey(val)
+    if (val.trim()) {
+      localStorage.setItem("reflow_ai_api_key", val.trim())
+    } else {
+      localStorage.removeItem("reflow_ai_api_key")
+    }
+  }
 
   useEffect(() => {
     if (!isOpen) {
@@ -97,7 +109,7 @@ export function EditorAiDialog({
     setError("")
     setSelectedPreviewNodeId(null)
     try {
-      const res = await assistant.generate(target)
+      const res = await assistant.generate(target, apiKey.trim() || undefined)
       setDraft(res)
       if (res.nodes.length > 0) {
         setSelectedPreviewNodeId(res.nodes[0].nodeId)
@@ -224,10 +236,56 @@ export function EditorAiDialog({
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose} disabled={busy} className="h-7 w-7 p-0">
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowKeySettings(!showKeySettings)}
+              className={`h-7 px-2 text-[11px] gap-1.5 ${apiKey ? "border-emerald-500/50 text-emerald-600 bg-emerald-500/5" : "text-muted-foreground"}`}
+              title="Configure Custom API Key (Gemini, Groq, OpenAI)"
+            >
+              <Key className="h-3 w-3" />
+              <span>{apiKey ? (apiKey.startsWith("AIzaSy") ? "Gemini Key ✓" : "API Key ✓") : "Set API Key"}</span>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onClose} disabled={busy} className="h-7 w-7 p-0">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
+
+        {/* API Key Settings Dropdown */}
+        {showKeySettings && (
+          <div className="px-5 py-2.5 bg-muted/40 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+            <div className="space-y-0.5">
+              <label className="font-medium text-foreground flex items-center gap-1.5">
+                <Key className="h-3 w-3 text-primary" />
+                <span>Custom API Key (Gemini, Groq, or OpenAI)</span>
+              </label>
+              <p className="text-[10px] text-muted-foreground">
+                Paste your Google Gemini key (starts with <code className="font-mono">AIzaSy</code>) or Groq / OpenAI key. Stored in your browser.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                type="password"
+                placeholder="AIzaSy... (Gemini) or gsk_... (Groq)"
+                value={apiKey}
+                onChange={e => handleApiKeyChange(e.target.value)}
+                className="h-7 text-xs w-64 font-mono"
+              />
+              {apiKey && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleApiKeyChange("")}
+                  className="h-7 text-[10px] text-muted-foreground hover:text-destructive px-1.5"
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Content Body */}
         <div className="flex-1 overflow-auto p-5 space-y-4">

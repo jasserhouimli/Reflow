@@ -13,28 +13,42 @@ public sealed class OpenAiCompatibleLanguageModel(
     HttpClient http,
     IOptions<AiOptions> options) : ILanguageModel
 {
+    public Task<string> CompleteJsonAsync(
+        string systemPrompt, string userPrompt, CancellationToken ct) =>
+        CompleteJsonAsync(systemPrompt, userPrompt, null, ct);
+
     public async Task<string> CompleteJsonAsync(
-        string systemPrompt, string userPrompt, CancellationToken ct)
+        string systemPrompt, string userPrompt, string? apiKeyOverride, CancellationToken ct)
     {
         var settings = options.Value;
+        var effectiveApiKey = !string.IsNullOrWhiteSpace(apiKeyOverride) ? apiKeyOverride.Trim() : settings.ApiKey;
 
-        if (settings.ApiKey == "dev-mock-key" || settings.ApiKey == "mock")
+        if (effectiveApiKey == "dev-mock-key" || effectiveApiKey == "mock")
         {
             await Task.Delay(400, ct);
             return GenerateLocalMockResponse(userPrompt);
         }
 
-        var endpoint = $"{settings.BaseUrl.TrimEnd('/')}/chat/completions";
+        // Auto-detect Google Gemini API keys (starts with AIzaSy) and route to Gemini OpenAI endpoint
+        var isGemini = effectiveApiKey.StartsWith("AIzaSy");
+        var baseUrl = isGemini && (settings.BaseUrl.Contains("groq.com") || string.IsNullOrWhiteSpace(settings.BaseUrl))
+            ? "https://generativelanguage.googleapis.com/v1beta/openai"
+            : settings.BaseUrl;
+        var model = isGemini && (settings.Model.Contains("llama") || string.IsNullOrWhiteSpace(settings.Model))
+            ? "gemini-2.5-flash"
+            : settings.Model;
+
+        var endpoint = $"{baseUrl.TrimEnd('/')}/chat/completions";
         var maxAttempts = Math.Max(0, settings.MaxTransientRetries) + 1;
 
         for (var attempt = 1; ; attempt++)
         {
             // HttpRequestMessage cannot be resent, so build one per attempt.
             using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", settings.ApiKey);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", effectiveApiKey);
             request.Content = JsonContent.Create(new
             {
-                model = settings.Model,
+                model = model,
                 temperature = 0.1,
                 max_tokens = settings.MaxOutputTokens,
                 response_format = new { type = "json_object" },
