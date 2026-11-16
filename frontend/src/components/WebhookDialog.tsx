@@ -32,8 +32,9 @@ export function WebhookDialog({ isOpen, onClose, onCreate }: Props) {
     }
   }
 
+  const apiBase = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || window.location.origin
   const webhookUrl = createdToken
-    ? `${window.location.origin}/api/v1/hooks/${createdToken}`
+    ? `${apiBase}/api/v1/hooks/${createdToken}`
     : ""
 
   const curlSnippet = createdToken

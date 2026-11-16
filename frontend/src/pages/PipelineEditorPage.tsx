@@ -1641,7 +1641,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                     <tr key={t.id} className="hover:bg-muted/20 transition-colors">
                       <td className="px-3 py-2.5 font-medium text-foreground">{t.name}</td>
                       <td className="px-3 py-2.5 font-mono text-[11px] text-muted-foreground">
-                        {window.location.origin}/api/v1/hooks/••••••••
+                        {((import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || window.location.origin)}/api/v1/hooks/••••••••
                       </td>
                       <td className="px-3 py-2.5 text-right space-x-2">
                         <button
@@ -1649,7 +1649,8 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
                           onClick={async () => {
                             try {
                               const r = await triggers.regenerateWebhook(pipelineId, t.id)
-                              navigator.clipboard.writeText(`${window.location.origin}/api/v1/hooks/${r.token}`)
+                              const origin = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || window.location.origin
+                              navigator.clipboard.writeText(`${origin}/api/v1/hooks/${r.token}`)
                               say("New Webhook URL copied to clipboard!")
                             } catch (e) { fail(e) }
                           }}
