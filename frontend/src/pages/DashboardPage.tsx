@@ -38,6 +38,7 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
   const [showAi, setShowAi] = useState(false)
 
   useEffect(() => {
+    document.title = "Reflow · Pipelines"
     pipelines.list().then(setList).catch(e => setError(e.message)).finally(() => setLoading(false))
   }, [])
 

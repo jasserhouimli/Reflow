@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { auth } from "@/api/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -90,6 +90,10 @@ function InactiveGoogleButton({ onClick }: { onClick: () => void }) {
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
+  useEffect(() => {
+    document.title = "Reflow · Sign In"
+  }, [])
+
   const [isRegister, setIsRegister] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")

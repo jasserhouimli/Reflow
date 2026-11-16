@@ -533,6 +533,13 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
   const [isCancellingRun, setIsCancellingRun] = useState(false)
 
   useEffect(() => {
+    document.title = name ? `${name} · Reflow` : "Reflow"
+    return () => {
+      document.title = "Reflow"
+    }
+  }, [name])
+
+  useEffect(() => {
     const handleGlobalKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault()
