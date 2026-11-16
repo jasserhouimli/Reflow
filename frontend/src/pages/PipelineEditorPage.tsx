@@ -8,7 +8,7 @@ import {
 import "@xyflow/react/dist/style.css"
 import {
   pipelines, runs, triggers, nodeTypes, versions, artifactUrl, files,
-  RUN_STATUSES, TASK_STATUSES, PIPELINE_STATUSES,
+  RUN_STATUSES, TASK_STATUSES,
   type PipelineDetail, type PipelineEdge,
   type NodeDefinition, type PipelineRun, type TaskRun, type RunLog, type RunSnapshot, type TriggerItem,
   type TaskDetail, type TaskAttempt, type VersionDetail, type SourceFile,
@@ -46,6 +46,7 @@ import {
   LayoutGrid,
   Trash2,
   Loader2,
+  FileEdit,
 } from "lucide-react"
 
 interface Props {
@@ -978,7 +979,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <Skeleton className="h-5 w-40 rounded" />
-            <Skeleton className="h-4 w-14 rounded-full" />
+            <Skeleton className="h-5 w-24 rounded-md" />
           </div>
           <div className="flex items-center gap-2">
             <Skeleton className="h-8 w-20 rounded-md" />
@@ -1027,14 +1028,23 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
               className="w-48 h-8 text-sm font-semibold border-transparent hover:border-border focus:border-border transition-colors px-2"
               placeholder="Pipeline Name"
             />
-            <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
-              detail.status === 1 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400" : "bg-muted text-muted-foreground"
-            }`}>
-              {PIPELINE_STATUSES[detail.status]} · v{detail.currentVersion}
-            </span>
+            <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-border/60 bg-muted/30 text-xs">
+              {detail.status === 1 ? (
+                <>
+                  <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span className="font-semibold text-foreground">Published</span>
+                </>
+              ) : (
+                <>
+                  <FileEdit className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="font-medium text-muted-foreground">Draft</span>
+                </>
+              )}
+              <span className="text-muted-foreground/30">|</span>
+              <span className="font-mono text-[11px] text-muted-foreground font-normal">v{detail.currentVersion}</span>
+            </div>
             {dirty && (
-              <span className="text-[11px] text-amber-600 font-medium flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium px-2 py-0.5 rounded-md border border-amber-500/25 bg-amber-500/10">
                 unsaved
               </span>
             )}
@@ -1193,7 +1203,7 @@ function PipelineEditor({ pipelineId, onBack, onLogout }: Props) {
         <div className="w-64 border-r p-3 space-y-2.5 overflow-auto bg-card/30 shrink-0 flex flex-col">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Components</span>
-            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-muted text-muted-foreground font-medium">
+            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-muted text-muted-foreground font-medium">
               {defs.length}
             </span>
           </div>

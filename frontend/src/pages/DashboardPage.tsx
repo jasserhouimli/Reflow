@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { pipelines, PIPELINE_STATUSES, type Pipeline } from "@/api/client"
+import { pipelines, type Pipeline } from "@/api/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -15,7 +15,9 @@ import {
   Clock,
   Layers,
   ChevronRight,
-  Loader2
+  Loader2,
+  Check,
+  FileEdit
 } from "lucide-react"
 
 interface DashboardPageProps {
@@ -227,7 +229,7 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Skeleton className="h-5 w-14 rounded-full" />
+                  <Skeleton className="h-5 w-16 rounded-md" />
                   <Skeleton className="h-4 w-4 rounded" />
                 </div>
               </div>
@@ -264,7 +266,6 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
         ) : (
           <div className="border rounded-lg bg-card divide-y overflow-hidden shadow-2xs">
             {shown.map(p => {
-              const statusName = PIPELINE_STATUSES[p.status] ?? "Draft"
               const isPublished = p.status === 1 || p.currentVersion > 0
               return (
                 <div
@@ -281,13 +282,19 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
                         <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors truncate">
                           {p.name}
                         </span>
-                        <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${
-                          isPublished
-                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-                            : "bg-muted text-muted-foreground"
-                        }`}>
-                          {statusName}
-                        </span>
+                        <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-border/50 bg-muted/40 text-[10px] font-medium">
+                          {isPublished ? (
+                            <>
+                              <Check className="h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400" />
+                              <span className="text-foreground">Published</span>
+                            </>
+                          ) : (
+                            <>
+                              <FileEdit className="h-2.5 w-2.5 text-muted-foreground" />
+                              <span className="text-muted-foreground">Draft</span>
+                            </>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-3 text-[11px] text-muted-foreground font-mono mt-0.5">
                         <span>v{p.currentVersion}</span>
