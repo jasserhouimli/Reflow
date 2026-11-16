@@ -28,7 +28,7 @@ public sealed class DataSqlHandler : INodeHandler, INodeConfigSchema
     public IReadOnlyList<NodeConfigField> ConfigSchema =>
     [
         new("query", "string", true,
-            "Read-only analytical SQL over upstream tables named after their node ids (lowercased), plus 'input' when there is one upstream"),
+            "Read-only analytical SQL over upstream tables named after their node ids (lowercased), plus 'input' when there is one upstream. Note: table columns are VARCHAR, so cast numbers explicitly e.g. SUM(CAST(amount AS DOUBLE))."),
     ];
 
     public IReadOnlyList<string> ValidateConfig(JsonElement config)

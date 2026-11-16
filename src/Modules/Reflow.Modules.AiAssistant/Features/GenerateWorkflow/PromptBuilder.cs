@@ -40,6 +40,7 @@ public sealed class PromptBuilder(NodeTypeRegistry registry, IOptions<AiOptions>
         builder.AppendLine("- Put a short assumption in \"warnings\" whenever the request is ambiguous.");
         builder.AppendLine($"- Use at most {max} nodes. Prefer the smallest graph that satisfies the request.");
         builder.AppendLine("- Never invent file ids or secrets. Use a file only if it is listed under AVAILABLE FILES.");
+        builder.AppendLine("- In data.sql queries: Upstream table columns are stored as VARCHAR. You MUST explicitly cast all numeric columns using TRY_CAST or CAST when aggregating or calculating (e.g. SUM(TRY_CAST(amount AS DOUBLE)) as total_amount, AVG(TRY_CAST(price AS DOUBLE)), CAST(date AS TIMESTAMP)). Never call SUM(), AVG(), or arithmetic directly on raw column names without CAST.");
         builder.AppendLine();
         builder.AppendLine("NODE CATALOG");
 
