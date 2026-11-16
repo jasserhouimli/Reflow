@@ -1,8 +1,10 @@
 using System.Text.Json;
+using Reflow.Infrastructure.Files;
 using Reflow.Modules.AiAssistant.Features.GenerateWorkflow;
 using Reflow.Modules.NodeTypes.Abstractions;
 using Reflow.Modules.NodeTypes.CsvRead;
 using Reflow.Modules.NodeTypes.DataOutput;
+using Reflow.Modules.NodeTypes.FileRead;
 using Reflow.Modules.NodeTypes.Filter;
 using Reflow.Modules.NodeTypes.Registry;
 using Reflow.Modules.NodeTypes.Transform;
@@ -17,6 +19,7 @@ public class WorkflowDraftValidatorTests
         // Only metadata and ValidateConfig are exercised; execution
         // dependencies are irrelevant here.
         new CsvReadHandler(null!),
+        new FileReadHandler(null!, null!),
         new FilterHandler(null!),
         new TransformHandler(null!),
         new DataOutputHandler(null!),
@@ -29,6 +32,9 @@ public class WorkflowDraftValidatorTests
 
     private static DraftNode CsvNode(string id = "source") =>
         new(id, "csv.read", null, Json("""{ "csvText": "a\n1" }"""));
+
+    private static DraftNode FileReadNode(string id = "source", string fileId = "00000000-0000-0000-0000-000000000001") =>
+        new(id, "file.read", null, Json($$"""{ "fileId": "{{fileId}}", "format": "csv" }"""));
 
     [Fact]
     public void AcceptsGraphThatPassesEveryNodeValidator()
@@ -148,5 +154,43 @@ public class WorkflowDraftValidatorTests
         var errors = Validator.Validate(new WorkflowDraft("Empty", "", [], [], []), 20);
 
         Assert.Contains(errors, e => e.Contains("no nodes"));
+    }
+
+    [Fact]
+    public void RejectsFileReadWhenNoAvailableFiles()
+    {
+        var draft = new WorkflowDraft("WithFile", "", [FileReadNode()], [], []);
+        var errors = Validator.Validate(draft, 20, Array.Empty<SourceFileRef>());
+
+        Assert.Contains(errors, e => e.Contains("AVAILABLE FILES is empty"));
+    }
+
+    [Fact]
+    public void RejectsFileReadWhenFileIdNotInAvailableFiles()
+    {
+        var validId = Guid.NewGuid();
+        var files = new[] { new SourceFileRef(validId, "orders.csv") };
+        var draft = new WorkflowDraft("WithFile", "", [FileReadNode(fileId: Guid.NewGuid().ToString())], [], []);
+        var errors = Validator.Validate(draft, 20, files);
+
+        Assert.Contains(errors, e => e.Contains("is not in AVAILABLE FILES"));
+    }
+
+    [Fact]
+    public void AcceptsFileReadWhenFileIdMatchesAvailableFile()
+    {
+        var validId = Guid.NewGuid();
+        var files = new[] { new SourceFileRef(validId, "orders.csv") };
+        var draft = new WorkflowDraft(
+            "WithFile", "",
+            [
+                FileReadNode(fileId: validId.ToString()),
+                new("out", "data.output", null, Json("{}")),
+            ],
+            [new("source", "out")],
+            []);
+        var errors = Validator.Validate(draft, 20, files);
+
+        Assert.Empty(errors);
     }
 }

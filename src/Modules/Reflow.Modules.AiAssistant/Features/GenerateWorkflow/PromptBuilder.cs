@@ -39,7 +39,10 @@ public sealed class PromptBuilder(NodeTypeRegistry registry, IOptions<AiOptions>
         builder.AppendLine("- Source nodes (no inputs) start the graph; every other node needs its declared inputs wired.");
         builder.AppendLine("- Put a short assumption in \"warnings\" whenever the request is ambiguous.");
         builder.AppendLine($"- Use at most {max} nodes. Prefer the smallest graph that satisfies the request.");
-        builder.AppendLine("- Never invent file ids or secrets. Use a file only if it is listed under AVAILABLE FILES.");
+        builder.AppendLine("- SOURCE NODE SELECTION (CRITICAL):");
+        builder.AppendLine("  * WEBHOOK / API / PAYLOADS: If the user mentions webhook, API, HTTP, payload, real-time trigger, or Postman testing, use 'trigger.payload' as the source node.");
+        builder.AppendLine("  * UPLOADED FILES: Use 'file.read' ONLY when the user explicitly asks to read an existing uploaded file AND that file is listed under AVAILABLE FILES below (match by exact fileId). NEVER invent a fileId. If AVAILABLE FILES is empty or has no matching file, NEVER use 'file.read'.");
+        builder.AppendLine("  * DEFAULT SOURCE: In all other cases (general pipelines, SQL analytics, aggregations, transformations, filtering, sorting, joins, sample/demo pipelines, or when no matching uploaded file exists), ALWAYS use 'csv.read' with realistic inline sample data in 'csvText' (include a header line and 3-5 rows e.g. \"id,category,amount,date\\n1,Electronics,120.50,2025-01-15\\n2,Clothing,45.00,2025-01-16\"). This makes the generated workflow self-contained and immediately runnable.");
         builder.AppendLine("- In data.sql queries: Upstream table columns are stored as VARCHAR. You MUST explicitly cast all numeric columns using TRY_CAST or CAST when aggregating or calculating (e.g. SUM(TRY_CAST(amount AS DOUBLE)) as total_amount, AVG(TRY_CAST(price AS DOUBLE)), CAST(date AS TIMESTAMP)). Never call SUM(), AVG(), or arithmetic directly on raw column names without CAST.");
         builder.AppendLine();
         builder.AppendLine("NODE CATALOG");

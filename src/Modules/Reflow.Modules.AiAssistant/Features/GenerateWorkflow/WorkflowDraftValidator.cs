@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Reflow.Infrastructure.Files;
 using Reflow.Infrastructure.Graphs;
 using Reflow.Modules.NodeTypes.Registry;
 
@@ -16,7 +17,8 @@ public sealed class WorkflowDraftValidator(NodeTypeRegistry registry)
         RegexOptions.CultureInvariant,
         TimeSpan.FromMilliseconds(100));
 
-    public IReadOnlyList<string> Validate(WorkflowDraft draft, int maxNodes)
+    public IReadOnlyList<string> Validate(
+        WorkflowDraft draft, int maxNodes, IReadOnlyList<SourceFileRef>? availableFiles = null)
     {
         var errors = new List<string>();
 
@@ -50,6 +52,26 @@ public sealed class WorkflowDraftValidator(NodeTypeRegistry registry)
 
             foreach (var error in handler.ValidateConfig(node.Config))
                 errors.Add($"node '{node.NodeId}' ({node.NodeType}): {error}");
+
+            if (string.Equals(node.NodeType, "file.read", StringComparison.OrdinalIgnoreCase) && availableFiles is not null)
+            {
+                if (availableFiles.Count == 0)
+                {
+                    errors.Add(
+                        $"node '{node.NodeId}' (file.read): Cannot use 'file.read' because AVAILABLE FILES is empty. Use 'csv.read' with inline sample data ('csvText') or 'trigger.payload' instead.");
+                }
+                else if (node.Config.TryGetProperty("fileId", out var idElement)
+                    && idElement.ValueKind == System.Text.Json.JsonValueKind.String
+                    && Guid.TryParse(idElement.GetString(), out var requestedFileId))
+                {
+                    if (!availableFiles.Any(f => f.Id == requestedFileId))
+                    {
+                        var validList = string.Join(", ", availableFiles.Select(f => $"{f.Id} (\"{f.FileName}\")"));
+                        errors.Add(
+                            $"node '{node.NodeId}' (file.read): fileId '{requestedFileId}' is not in AVAILABLE FILES. Valid files: [{validList}], or use 'csv.read' with inline sample data ('csvText') instead.");
+                    }
+                }
+            }
         }
 
         var graphNodes = draft.Nodes

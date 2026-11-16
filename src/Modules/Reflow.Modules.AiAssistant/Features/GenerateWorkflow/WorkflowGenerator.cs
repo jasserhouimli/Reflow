@@ -89,7 +89,7 @@ public sealed class WorkflowGenerator(
             }
             else
             {
-                var validationErrors = validator.Validate(draft, settings.MaxDraftNodes);
+                var validationErrors = validator.Validate(draft, settings.MaxDraftNodes, files);
                 if (validationErrors.Count == 0)
                 {
                     logger.LogInformation(
