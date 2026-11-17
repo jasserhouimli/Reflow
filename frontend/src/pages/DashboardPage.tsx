@@ -24,9 +24,10 @@ interface DashboardPageProps {
   user: { id: string; email: string; displayName: string }
   onSelectPipeline: (id: string) => void
   onLogout: () => void
+  onViewLanding?: () => void
 }
 
-export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPageProps) {
+export function DashboardPage({ user, onSelectPipeline, onLogout, onViewLanding }: DashboardPageProps) {
   const [list, setList] = useState<Pipeline[]>([])
   const [newName, setNewName] = useState("")
   const [creating, setCreating] = useState(false)
@@ -104,6 +105,14 @@ export function DashboardPage({ user, onSelectPipeline, onLogout }: DashboardPag
         </div>
 
         <div className="flex items-center gap-3 text-xs">
+          {onViewLanding && (
+            <button
+              onClick={onViewLanding}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-medium"
+            >
+              Home
+            </button>
+          )}
           <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-md bg-muted/50 border text-muted-foreground font-mono">
             <span>{user.email}</span>
           </div>

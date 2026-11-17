@@ -1,5 +1,6 @@
 import { useState, useEffect, Component, type ReactNode } from "react"
 import { auth } from "@/api/client"
+import { LandingPage } from "@/pages/LandingPage"
 import { LoginPage } from "@/pages/LoginPage"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { PipelineEditorPage } from "@/pages/PipelineEditorPage"
@@ -32,6 +33,8 @@ export default function App() {
   const [user, setUser] = useState<{ id: string; email: string; displayName: string } | null>(null)
   const [selectedPipeline, setSelectedPipeline] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [authView, setAuthView] = useState<"landing" | "login">("landing")
+  const [showLandingForUser, setShowLandingForUser] = useState(false)
 
   useEffect(() => {
     auth.me()
@@ -80,7 +83,26 @@ export default function App() {
     )
   }
 
-  if (!user) return <LoginPage onLogin={() => auth.me().then(setUser)} />
+  if (!user) {
+    if (authView === "login") {
+      return (
+        <LoginPage
+          onLogin={() => auth.me().then(setUser)}
+          onBack={() => setAuthView("landing")}
+        />
+      )
+    }
+    return <LandingPage onGetStarted={() => setAuthView("login")} />
+  }
+
+  if (showLandingForUser) {
+    return (
+      <LandingPage
+        onGetStarted={() => setShowLandingForUser(false)}
+        isLoggedIn={true}
+      />
+    )
+  }
 
   if (selectedPipeline) {
     return (
@@ -92,7 +114,12 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <DashboardPage user={user} onSelectPipeline={setSelectedPipeline} onLogout={handleLogout} />
+      <DashboardPage
+        user={user}
+        onSelectPipeline={setSelectedPipeline}
+        onLogout={handleLogout}
+        onViewLanding={() => setShowLandingForUser(true)}
+      />
     </ErrorBoundary>
   )
 }

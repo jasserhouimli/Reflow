@@ -8,6 +8,7 @@ import { GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google"
 
 interface LoginPageProps {
   onLogin: () => void
+  onBack?: () => void
 }
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -89,7 +90,7 @@ function InactiveGoogleButton({ onClick }: { onClick: () => void }) {
   )
 }
 
-export function LoginPage({ onLogin }: LoginPageProps) {
+export function LoginPage({ onLogin, onBack }: LoginPageProps) {
   useEffect(() => {
     document.title = "Reflow · Sign In"
   }, [])
@@ -135,7 +136,16 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="mb-4 text-xs font-mono text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors cursor-pointer self-center"
+        >
+          <span>← Back to Reflow</span>
+        </button>
+      )}
       <Card className="w-full max-w-[390px] border-border/80 bg-card/95 shadow-sm">
         <CardHeader className="space-y-2 pb-4">
           <div className="flex items-center justify-between">
