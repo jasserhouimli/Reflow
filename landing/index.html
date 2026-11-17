@@ -40,6 +40,33 @@
     .mono { font-family: var(--mono); }
     .muted { color: var(--muted); }
 
+    /* Intro Announcement Banner */
+    .announcement-bar {
+      background: #f4f4f5;
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .announcement-inner {
+      max-width: 1140px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .announcement-btn {
+      font-weight: 600;
+      text-decoration: underline;
+      color: var(--fg);
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      margin-left: 4px;
+    }
+
     /* Header */
     header.site-header {
       position: sticky;
@@ -93,7 +120,19 @@
       font-size: 13px;
       color: var(--muted);
     }
-    nav.nav-links a:hover { color: var(--fg); }
+    nav.nav-links a:hover, nav.nav-links button:hover { color: var(--fg); }
+
+    .btn-nav-intro {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--fg);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
 
     .btn-primary {
       display: inline-flex;
@@ -131,7 +170,7 @@
 
     /* Hero */
     .hero {
-      padding: 72px 0 56px;
+      padding: 68px 0 52px;
       text-align: center;
       border-bottom: 1px solid var(--border);
     }
@@ -272,6 +311,35 @@
       justify-content: space-between;
     }
 
+    /* Introduction Section */
+    .intro-section {
+      padding: 60px 0;
+      border-bottom: 1px solid var(--border);
+      background: #fafafa;
+    }
+    .intro-grid {
+      display: grid;
+      grid-template-columns: 5fr 7fr;
+      gap: 36px;
+      align-items: center;
+    }
+    .intro-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #ffffff;
+      padding: 18px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    }
+    .intro-card-step {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .intro-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .intro-card p { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
     /* Sections */
     section { padding: 72px 0; border-bottom: 1px solid var(--border); }
     .section-head { max-width: 650px; margin-bottom: 40px; }
@@ -336,26 +404,6 @@
     }
 
     /* Node Catalog */
-    .cat-tabs {
-      display: flex;
-      gap: 6px;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 12px;
-      margin-bottom: 24px;
-    }
-    .cat-tab {
-      border: none;
-      background: none;
-      padding: 6px 14px;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--muted);
-      cursor: pointer;
-      border-radius: 6px;
-      text-transform: capitalize;
-    }
-    .cat-tab.active { background: #09090b; color: #fff; font-weight: 500; }
-
     .node-cards-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -403,15 +451,96 @@
     .footer-inner { display: flex; align-items: center; justify-content: space-between; }
     .footer-links { display: flex; gap: 16px; font-family: var(--mono); font-size: 11px; }
 
+    /* Introduction Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(9, 9, 11, 0.4);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-card {
+      width: 100%;
+      max-width: 520px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+    .modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .modal-badge {
+      font-family: var(--mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      background: #f4f4f5;
+      padding: 2px 8px;
+      border-radius: 4px;
+      color: var(--muted);
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+    .modal-title { font-size: 18px; font-weight: 750; }
+    .modal-subtitle { font-size: 13px; color: var(--muted); margin-top: 2px; font-weight: 500; }
+    .modal-body { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 18px; }
+    .modal-tip {
+      background: #f4f4f5;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--fg);
+      margin-top: 12px;
+    }
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+    }
+    .dots-nav { display: flex; gap: 6px; }
+    .dot-item {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #e4e4e7;
+      cursor: pointer;
+    }
+    .dot-item.active { background: var(--fg); width: 20px; border-radius: 4px; }
+
     @media (max-width: 768px) {
       .features-grid { grid-template-columns: 1fr; }
       .nodes-row { grid-template-columns: 1fr; }
       .node-cards-grid { grid-template-columns: 1fr; }
+      .intro-grid { grid-template-columns: 1fr; }
       nav.nav-links { display: none; }
     }
   </style>
 </head>
 <body>
+
+  <!-- Announcement Bar -->
+  <div class="announcement-bar" id="announcement">
+    <div class="announcement-inner">
+      <div>
+        <strong style="color: var(--fg);">👋 Welcome to Reflow!</strong> New here? Take our quick 30-second introduction.
+        <button class="announcement-btn" id="open-tour-banner">Start Guided Tour →</button>
+      </div>
+      <button style="background: none; border: none; cursor: pointer; color: var(--muted);" id="close-banner">✕</button>
+    </div>
+  </div>
 
   <!-- Header -->
   <header class="site-header">
@@ -429,6 +558,10 @@
       </div>
 
       <nav class="nav-links">
+        <button class="btn-nav-intro" id="open-tour-nav">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>Introduction</span>
+        </button>
         <a href="#features">Features</a>
         <a href="#ai">AI Assistant</a>
         <a href="#nodes">Node Catalog</a>
@@ -462,9 +595,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
         </a>
-        <a href="#features">
-          <button class="btn-secondary">Explore Features</button>
-        </a>
+        <button class="btn-secondary" id="open-tour-hero">Platform Introduction</button>
       </div>
 
       <!-- Showcase Window -->
@@ -540,6 +671,40 @@
                 <span>Ready</span>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Introduction Section -->
+  <section class="intro-section" id="intro">
+    <div class="container">
+      <div class="intro-grid">
+        <div>
+          <span class="modal-badge">Introduction</span>
+          <h2 style="font-size: 26px; font-weight: 750; margin-bottom: 10px;">A modern way to orchestrate data without the headache.</h2>
+          <p style="font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 16px;">
+            Reflow was built to eliminate the gap between heavy, code-bloated orchestrators and restrictive no-code builders. It lets you design, inspect, and run data transformations completely visually.
+          </p>
+          <button class="announcement-btn" id="open-tour-section" style="font-size: 13px;">Open 30-Second Guided Tour →</button>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+          <div class="intro-card">
+            <div class="intro-card-step">01 · Visual DAG</div>
+            <h3>Connect Nodes</h3>
+            <p>Drop CSV/JSON files, add filter or join nodes, and connect handles to create a data flow.</p>
+          </div>
+          <div class="intro-card">
+            <div class="intro-card-step">02 · In-Process SQL</div>
+            <h3>Write Real SQL</h3>
+            <p>Run analytical queries directly on your data in memory without spinning up database servers.</p>
+          </div>
+          <div class="intro-card">
+            <div class="intro-card-step">03 · Automate</div>
+            <h3>Schedule & Export</h3>
+            <p>Set hourly cron jobs or incoming webhooks, and download clean reports with one click.</p>
           </div>
         </div>
       </div>
@@ -720,5 +885,135 @@
     </div>
   </footer>
 
+  <!-- Guided Tour Modal -->
+  <div class="modal-overlay" id="intro-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <span class="modal-badge" id="modal-step-badge">Step 1 of 4 · The Concept</span>
+          <div class="modal-title" id="modal-step-title">Welcome to Reflow</div>
+          <div class="modal-subtitle" id="modal-step-sub">A visual platform for building and automating data workflows.</div>
+        </div>
+        <button style="background: none; border: none; font-size: 18px; cursor: pointer; color: var(--muted);" id="modal-close-btn">✕</button>
+      </div>
+
+      <div class="modal-body" id="modal-step-body">
+        Setting up data pipelines usually means writing repetitive boilerplate glue code or managing complex backend infrastructure. Reflow makes the entire process visual: you drag nodes onto an interactive canvas, connect them into a DAG (Directed Acyclic Graph), and run transformations directly in your browser.
+      </div>
+
+      <div class="modal-tip" id="modal-step-tip">
+        💡 <strong>Pro-tip:</strong> Everything you see on the canvas represents a clean, repeatable data transformation.
+      </div>
+
+      <div class="modal-footer">
+        <div class="dots-nav">
+          <span class="dot-item active" data-dot="0"></span>
+          <span class="dot-item" data-dot="1"></span>
+          <span class="dot-item" data-dot="2"></span>
+          <span class="dot-item" data-dot="3"></span>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-secondary" id="modal-back-btn" style="display: none; padding: 6px 12px; font-size: 12px;">Back</button>
+          <button class="btn-primary" id="modal-next-btn" style="padding: 6px 14px; font-size: 12px;">Next →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Tour Data
+    const TOUR_SLIDES = [
+      {
+        badge: "Step 1 of 4 · The Concept",
+        title: "Welcome to Reflow",
+        subtitle: "A visual platform for building and automating data workflows.",
+        body: "Setting up data pipelines usually means writing repetitive boilerplate glue code or managing complex backend infrastructure. Reflow makes the entire process visual: you drag nodes onto an interactive canvas, connect them into a DAG (Directed Acyclic Graph), and run transformations directly in your browser.",
+        tip: "Everything you see on the canvas represents a clean, repeatable data transformation."
+      },
+      {
+        badge: "Step 2 of 4 · Building",
+        title: "Visual Canvas & AI Generation",
+        subtitle: "Build by hand or let AI draft the pipeline for you.",
+        body: "You can drag specialized nodes from the catalog onto the canvas and connect their handles with arrows. Or, if you don't want to start from scratch, click 'Generate with AI', describe your pipeline in plain English, and watch Reflow construct the connected workflow automatically.",
+        tip: "Example prompt: 'Read sales CSV, filter orders over $100, calculate revenue with SQL, and export to CSV'."
+      },
+      {
+        badge: "Step 3 of 4 · Analytics",
+        title: "In-Process SQL Analytics",
+        subtitle: "Standard SQL queries without database servers.",
+        body: "You don't need to spin up external PostgreSQL or cloud warehouse instances. Reflow runs an embedded analytical engine right inside your pipeline. Upstream nodes automatically become queryable SQL tables.",
+        tip: "Perform groupings, joins, date calculations, and window functions with instant execution."
+      },
+      {
+        badge: "Step 4 of 4 · Automation",
+        title: "Automate & 1-Click Export",
+        subtitle: "Run on demand, on schedules, or from webhooks.",
+        body: "Automate your pipelines on cron schedules (hourly, daily, or custom) or trigger them via inbound webhook URLs from Stripe, GitHub, or Shopify. View real-time logs and download your clean CSV or JSON files with a single click.",
+        tip: "Ready to explore? Open the workspace to test pre-built pipelines or create your own."
+      }
+    ];
+
+    let currentSlide = 0;
+    const modal = document.getElementById("intro-modal");
+
+    function renderSlide(idx) {
+      currentSlide = idx;
+      const s = TOUR_SLIDES[idx];
+      document.getElementById("modal-step-badge").textContent = s.badge;
+      document.getElementById("modal-step-title").textContent = s.title;
+      document.getElementById("modal-step-sub").textContent = s.subtitle;
+      document.getElementById("modal-step-body").textContent = s.body;
+      document.getElementById("modal-step-tip").innerHTML = `💡 <strong>Pro-tip:</strong> ${s.tip}`;
+
+      document.querySelectorAll(".dot-item").forEach((d, i) => {
+        d.classList.toggle("active", i === idx);
+      });
+
+      document.getElementById("modal-back-btn").style.display = idx > 0 ? "inline-block" : "none";
+      document.getElementById("modal-next-btn").textContent = idx < TOUR_SLIDES.length - 1 ? "Next →" : "Open Workspace →";
+    }
+
+    function openModal() {
+      renderSlide(0);
+      modal.classList.add("active");
+    }
+
+    function closeModal() {
+      modal.classList.remove("active");
+    }
+
+    document.getElementById("open-tour-banner")?.addEventListener("click", openModal);
+    document.getElementById("open-tour-nav")?.addEventListener("click", openModal);
+    document.getElementById("open-tour-hero")?.addEventListener("click", openModal);
+    document.getElementById("open-tour-section")?.addEventListener("click", openModal);
+    document.getElementById("modal-close-btn")?.addEventListener("click", closeModal);
+    document.getElementById("close-banner")?.addEventListener("click", () => {
+      document.getElementById("announcement").style.display = "none";
+    });
+
+    document.getElementById("modal-back-btn")?.addEventListener("click", () => {
+      if (currentSlide > 0) renderSlide(currentSlide - 1);
+    });
+
+    document.getElementById("modal-next-btn")?.addEventListener("click", () => {
+      if (currentSlide < TOUR_SLIDES.length - 1) {
+        renderSlide(currentSlide + 1);
+      } else {
+        closeModal();
+        window.open("http://localhost:5173", "_blank");
+      }
+    });
+
+    document.querySelectorAll(".dot-item").forEach(dot => {
+      dot.addEventListener("click", () => {
+        renderSlide(parseInt(dot.dataset.dot, 10));
+      });
+    });
+
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeModal();
+    });
+  </script>
 </body>
 </html>

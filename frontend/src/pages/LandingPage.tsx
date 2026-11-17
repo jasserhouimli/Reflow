@@ -12,7 +12,11 @@ import {
   Download,
   Play,
   ExternalLink,
-  UploadCloud
+  UploadCloud,
+  X,
+  HelpCircle,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react"
 
 interface LandingPageProps {
@@ -25,6 +29,11 @@ export function LandingPage({ onGetStarted, isLoggedIn }: LandingPageProps) {
     document.title = "Reflow · Visual Data Pipeline Platform"
   }, [])
 
+  // Introduction Tour Modal State
+  const [showIntroModal, setShowIntroModal] = useState(false)
+  const [introStep, setIntroStep] = useState(0)
+  const [bannerDismissed, setBannerDismissed] = useState(false)
+
   // Interactive tab in the hero showcase: 'canvas' | 'ai' | 'execution'
   const [heroTab, setHeroTab] = useState<"canvas" | "ai" | "execution">("canvas")
 
@@ -33,6 +42,37 @@ export function LandingPage({ onGetStarted, isLoggedIn }: LandingPageProps) {
 
   // Interactive Node category tab
   const [activeCategory, setActiveCategory] = useState<"sources" | "shaping" | "analytics" | "sinks">("sources")
+
+  const introSlides = [
+    {
+      badge: "Step 1 of 4 · The Concept",
+      title: "Welcome to Reflow",
+      subtitle: "A visual platform for building and automating data workflows.",
+      body: "Setting up data pipelines usually means writing repetitive boilerplate glue code or managing complex backend infrastructure. Reflow makes the entire process visual: you drag nodes onto an interactive canvas, connect them into a DAG (Directed Acyclic Graph), and run transformations directly in your browser.",
+      tip: "Everything you see on the canvas represents a clean, repeatable data transformation."
+    },
+    {
+      badge: "Step 2 of 4 · Building",
+      title: "Visual Canvas & AI Generation",
+      subtitle: "Build by hand or let AI draft the pipeline for you.",
+      body: "You can drag specialized nodes from the catalog onto the canvas and connect their handles with arrows. Or, if you don't want to start from scratch, click 'Generate with AI', describe your pipeline in plain English, and watch Reflow construct the connected workflow automatically.",
+      tip: "Example prompt: 'Read sales CSV, filter orders over $100, calculate revenue with SQL, and export to CSV'."
+    },
+    {
+      badge: "Step 3 of 4 · Analytics",
+      title: "In-Process SQL Analytics",
+      subtitle: "Standard SQL queries without database servers.",
+      body: "You don't need to spin up external PostgreSQL or cloud warehouse instances. Reflow runs an embedded analytical engine right inside your pipeline. Upstream nodes automatically become queryable SQL tables.",
+      tip: "Perform groupings, joins, date calculations, and window functions with instant execution."
+    },
+    {
+      badge: "Step 4 of 4 · Automation",
+      title: "Automate & 1-Click Export",
+      subtitle: "Run on demand, on schedules, or from webhooks.",
+      body: "Automate your pipelines on cron schedules (hourly, daily, or custom) or trigger them via inbound webhook URLs from Stripe, GitHub, or Shopify. View real-time logs and download your clean CSV or JSON files with a single click.",
+      tip: "Ready to explore? Open the workspace to test pre-built pipelines or create your own."
+    }
+  ]
 
   const aiExamples = [
     {
@@ -150,7 +190,37 @@ export function LandingPage({ onGetStarted, isLoggedIn }: LandingPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-foreground selection:text-background">
+    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-foreground selection:text-background relative">
+      {/* ────────────────────────────────────────────────────────────
+          TOP INTRODUCTION ANNOUNCEMENT BANNER
+          ──────────────────────────────────────────────────────────── */}
+      {!bannerDismissed && (
+        <div className="bg-muted/70 border-b border-border/80 px-4 py-2 text-xs flex items-center justify-between text-muted-foreground transition-all">
+          <div className="max-w-6xl mx-auto w-full flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-foreground">👋 Welcome to Reflow!</span>
+              <span>New here? Check out our quick 30-second introduction.</span>
+              <button
+                onClick={() => {
+                  setIntroStep(0)
+                  setShowIntroModal(true)
+                }}
+                className="font-medium underline text-foreground hover:opacity-80 cursor-pointer transition-opacity ml-1"
+              >
+                Start Guided Tour →
+              </button>
+            </div>
+            <button
+              onClick={() => setBannerDismissed(true)}
+              className="p-1 hover:text-foreground cursor-pointer text-muted-foreground shrink-0"
+              title="Dismiss banner"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ────────────────────────────────────────────────────────────
           NAVIGATION
           ──────────────────────────────────────────────────────────── */}
@@ -169,6 +239,16 @@ export function LandingPage({ onGetStarted, isLoggedIn }: LandingPageProps) {
           </div>
 
           <nav className="hidden md:flex items-center gap-6 text-xs text-muted-foreground">
+            <button
+              onClick={() => {
+                setIntroStep(0)
+                setShowIntroModal(true)
+              }}
+              className="hover:text-foreground transition-colors cursor-pointer flex items-center gap-1 text-foreground font-medium"
+            >
+              <HelpCircle className="h-3.5 w-3.5" />
+              <span>Introduction</span>
+            </button>
             <a href="#features" className="hover:text-foreground transition-colors">
               Features
             </a>
@@ -180,9 +260,6 @@ export function LandingPage({ onGetStarted, isLoggedIn }: LandingPageProps) {
             </a>
             <a href="#automation" className="hover:text-foreground transition-colors">
               Automation
-            </a>
-            <a href="#how-it-works" className="hover:text-foreground transition-colors">
-              How It Works
             </a>
           </nav>
 
@@ -209,9 +286,9 @@ export function LandingPage({ onGetStarted, isLoggedIn }: LandingPageProps) {
       </header>
 
       {/* ────────────────────────────────────────────────────────────
-          HERO SECTION: Clean, focused, showcase-first
+          HERO SECTION
           ──────────────────────────────────────────────────────────── */}
-      <section className="pt-16 pb-12 sm:pt-20 sm:pb-16 border-b border-border/70">
+      <section className="pt-14 pb-12 sm:pt-20 sm:pb-16 border-b border-border/70">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-border/80 bg-muted/40 text-[11px] font-medium text-muted-foreground mb-6">
             <span>Visual Data Pipeline Platform</span>
@@ -234,17 +311,22 @@ export function LandingPage({ onGetStarted, isLoggedIn }: LandingPageProps) {
               <span>{isLoggedIn ? "Go to Dashboard" : "Launch Reflow Workspace"}</span>
               <ArrowRight className="h-4 w-4" />
             </Button>
-            <a
-              href="#features"
-              className="inline-flex items-center gap-2 h-10 px-4 rounded-md border border-border/80 bg-background hover:bg-muted/40 text-xs sm:text-sm font-medium text-foreground transition-all"
+
+            <button
+              onClick={() => {
+                setIntroStep(0)
+                setShowIntroModal(true)
+              }}
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-md border border-border/80 bg-background hover:bg-muted/40 text-xs sm:text-sm font-medium text-foreground transition-all cursor-pointer"
             >
-              <span>Explore Features</span>
-            </a>
+              <HelpCircle className="h-4 w-4 text-muted-foreground" />
+              <span>Platform Introduction</span>
+            </button>
           </div>
         </div>
 
         {/* ────────────────────────────────────────────────────────────
-            INTERACTIVE PRODUCT SHOWCASE WINDOW
+            PRODUCT SHOWCASE WINDOW
             ──────────────────────────────────────────────────────────── */}
         <div className="max-w-5xl mx-auto px-4 sm:px-6 mt-12">
           <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden">
@@ -282,14 +364,14 @@ export function LandingPage({ onGetStarted, isLoggedIn }: LandingPageProps) {
                     heroTab === "execution" ? "bg-muted text-foreground font-semibold" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  Live Run & Output
+                  Live Run &amp; Output
                 </button>
               </div>
             </div>
 
             {/* TAB 1: VISUAL CANVAS PREVIEW */}
             {heroTab === "canvas" && (
-              <div className="p-6 sm:p-10 bg-background/50 flex flex-col items-center justify-center min-h-[380px]">
+              <div className="p-6 sm:p-10 bg-background/50 flex flex-col items-center justify-center min-h-[360px]">
                 <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-4 gap-4 relative">
                   {/* Step 1 */}
                   <div className="rounded-lg border border-border/80 bg-card p-4 shadow-2xs space-y-3">
@@ -381,7 +463,7 @@ export function LandingPage({ onGetStarted, isLoggedIn }: LandingPageProps) {
 
             {/* TAB 2: AI WORKFLOW GENERATOR PREVIEW */}
             {heroTab === "ai" && (
-              <div className="p-6 sm:p-10 bg-background/50 flex flex-col items-center justify-center min-h-[380px]">
+              <div className="p-6 sm:p-10 bg-background/50 flex flex-col items-center justify-center min-h-[360px]">
                 <div className="w-full max-w-2xl rounded-lg border border-border/80 bg-card p-5 shadow-2xs space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b">
                     <div className="flex items-center gap-2">
@@ -424,12 +506,12 @@ export function LandingPage({ onGetStarted, isLoggedIn }: LandingPageProps) {
 
             {/* TAB 3: LIVE EXECUTION & OUTPUT PREVIEW */}
             {heroTab === "execution" && (
-              <div className="p-6 sm:p-10 bg-background/50 flex flex-col items-center justify-center min-h-[380px]">
+              <div className="p-6 sm:p-10 bg-background/50 flex flex-col items-center justify-center min-h-[360px]">
                 <div className="w-full max-w-3xl rounded-lg border border-border/80 bg-card overflow-hidden shadow-2xs">
                   <div className="p-3 border-b bg-muted/20 flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full bg-foreground" />
-                      <span className="font-semibold">Run Results & Output Table</span>
+                      <span className="font-semibold">Run Results &amp; Output Table</span>
                     </div>
                     <span className="text-[11px] font-mono text-muted-foreground">Status: Completed · 4 rows</span>
                   </div>
@@ -452,7 +534,7 @@ export function LandingPage({ onGetStarted, isLoggedIn }: LandingPageProps) {
                           <td className="py-2 px-4 font-mono">$295.41</td>
                         </tr>
                         <tr>
-                          <td className="py-2 px-4 font-medium">Home & Office</td>
+                          <td className="py-2 px-4 font-medium">Home &amp; Office</td>
                           <td className="py-2 px-4 font-mono">318</td>
                           <td className="py-2 px-4 font-mono">$78,120.50</td>
                           <td className="py-2 px-4 font-mono">$245.66</td>
@@ -483,6 +565,65 @@ export function LandingPage({ onGetStarted, isLoggedIn }: LandingPageProps) {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      </section>
+
+      {/* ────────────────────────────────────────────────────────────
+          INTRODUCTION SECTION: WHAT IS REFLOW?
+          ──────────────────────────────────────────────────────────── */}
+      <section id="introduction" className="py-14 sm:py-18 border-b border-border/70 bg-muted/10">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+            <div className="md:col-span-5 space-y-4">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded border border-border/70 bg-muted/50 text-[11px] font-mono text-muted-foreground">
+                <span>Introduction</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground leading-tight">
+                A modern way to orchestrate data without the headache.
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                Reflow was built to eliminate the gap between heavy, code-bloated orchestrators and restrictive no-code builders. It lets you design, inspect, and run data transformations completely visually.
+              </p>
+              <div className="pt-1">
+                <button
+                  onClick={() => {
+                    setIntroStep(0)
+                    setShowIntroModal(true)
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground underline underline-offset-4 hover:opacity-80 cursor-pointer"
+                >
+                  <span>Open 30-Second Guided Tour</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="md:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="rounded-lg border border-border/80 bg-card p-4 shadow-2xs space-y-2">
+                <div className="text-[10px] font-bold font-mono text-muted-foreground">01 · Visual DAG</div>
+                <h3 className="text-sm font-semibold text-foreground">Connect Nodes</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Drop CSV/JSON files, add filter or join nodes, and connect handles to create a data flow.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-border/80 bg-card p-4 shadow-2xs space-y-2">
+                <div className="text-[10px] font-bold font-mono text-muted-foreground">02 · In-Process SQL</div>
+                <h3 className="text-sm font-semibold text-foreground">Write Real SQL</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Run analytical queries directly on your data in memory without spinning up database servers.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-border/80 bg-card p-4 shadow-2xs space-y-2">
+                <div className="text-[10px] font-bold font-mono text-muted-foreground">03 · Automate</div>
+                <h3 className="text-sm font-semibold text-foreground">Schedule &amp; Export</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Set hourly cron jobs or incoming webhooks, and download clean reports with one click.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -550,7 +691,7 @@ export function LandingPage({ onGetStarted, isLoggedIn }: LandingPageProps) {
                 <UploadCloud className="h-5 w-5 text-foreground" />
               </div>
               <h3 className="text-base font-semibold tracking-tight text-foreground">
-                File Ingestion & Dropzone
+                File Ingestion &amp; Dropzone
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Drag and drop CSV or JSON files straight into the File Read node. Reflow automatically detects column headers, row counts, and delimiters (comma, tab, semicolon).
@@ -563,7 +704,7 @@ export function LandingPage({ onGetStarted, isLoggedIn }: LandingPageProps) {
                 <Clock className="h-5 w-5 text-foreground" />
               </div>
               <h3 className="text-base font-semibold tracking-tight text-foreground">
-                Schedules & Webhooks
+                Schedules &amp; Webhooks
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Run pipelines automatically on cron schedules (hourly, daily, or custom intervals) or trigger them via unique webhook URLs from external platforms like Stripe or Shopify.
@@ -576,7 +717,7 @@ export function LandingPage({ onGetStarted, isLoggedIn }: LandingPageProps) {
                 <Download className="h-5 w-5 text-foreground" />
               </div>
               <h3 className="text-base font-semibold tracking-tight text-foreground">
-                Live Output & 1-Click Export
+                Live Output &amp; 1-Click Export
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Watch tasks execute in real time with live streaming logs. Preview output tables in the bottom drawer and download clean CSV or JSON files with a single click.
@@ -779,54 +920,6 @@ export function LandingPage({ onGetStarted, isLoggedIn }: LandingPageProps) {
       </section>
 
       {/* ────────────────────────────────────────────────────────────
-          HOW IT WORKS (3 SIMPLE STEPS)
-          ──────────────────────────────────────────────────────────── */}
-      <section id="how-it-works" className="py-16 sm:py-20 border-b border-border/70">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="text-center max-w-2xl mx-auto mb-12">
-            <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground block mb-2">
-              Simple Workflow
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-              From raw data to clean insights in 3 steps.
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center sm:text-left">
-            <div className="space-y-3">
-              <div className="h-8 w-8 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold mx-auto sm:mx-0">
-                1
-              </div>
-              <h3 className="text-sm font-semibold text-foreground">Build or Generate</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Drag nodes from the palette onto the canvas, or click &ldquo;Generate with AI&rdquo; to draft a complete connected pipeline from a text description.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <div className="h-8 w-8 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold mx-auto sm:mx-0">
-                2
-              </div>
-              <h3 className="text-sm font-semibold text-foreground">Configure &amp; Query</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Upload your CSV/JSON data files, configure filters, and write standard SQL queries directly in the browser with automatic column detection.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <div className="h-8 w-8 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-bold mx-auto sm:mx-0">
-                3
-              </div>
-              <h3 className="text-sm font-semibold text-foreground">Automate &amp; Download</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Set an hourly or daily schedule, hook up a webhook for external apps, and download your clean result files with one click.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ────────────────────────────────────────────────────────────
           CALL TO ACTION
           ──────────────────────────────────────────────────────────── */}
       <section className="py-16 sm:py-20">
@@ -895,6 +988,104 @@ export function LandingPage({ onGetStarted, isLoggedIn }: LandingPageProps) {
           </div>
         </div>
       </footer>
+
+      {/* ────────────────────────────────────────────────────────────
+          INTERACTIVE GUIDED TOUR INTRODUCTION MODAL
+          ──────────────────────────────────────────────────────────── */}
+      {showIntroModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/40 backdrop-blur-xs animate-in fade-in duration-200">
+          <div
+            className="w-full max-w-lg rounded-xl border border-border/90 bg-card p-6 shadow-xl relative animate-dialog-pop space-y-5"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-2 py-0.5 rounded border bg-muted/40 inline-block mb-1.5">
+                  {introSlides[introStep].badge}
+                </span>
+                <h3 className="text-lg font-bold tracking-tight text-foreground">
+                  {introSlides[introStep].title}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5 font-medium">
+                  {introSlides[introStep].subtitle}
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowIntroModal(false)}
+                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="space-y-3.5 text-xs text-muted-foreground leading-relaxed">
+              <p>{introSlides[introStep].body}</p>
+
+              <div className="p-3 rounded-lg bg-muted/40 border border-border/70 text-foreground font-mono text-[11px] leading-relaxed">
+                💡 <span className="font-semibold text-foreground">Pro-tip:</span> {introSlides[introStep].tip}
+              </div>
+            </div>
+
+            {/* Modal Footer with Progress Dots & Nav */}
+            <div className="pt-2 border-t border-border/70 flex items-center justify-between gap-3">
+              {/* Progress Dots */}
+              <div className="flex items-center gap-1.5">
+                {introSlides.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setIntroStep(i)}
+                    className={`h-2 rounded-full transition-all cursor-pointer ${
+                      introStep === i ? "w-5 bg-foreground" : "w-2 bg-muted hover:bg-muted-foreground"
+                    }`}
+                    title={`Slide ${i + 1}`}
+                  />
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {introStep > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIntroStep(s => s - 1)}
+                    className="h-8 text-xs cursor-pointer gap-1"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                    <span>Back</span>
+                  </Button>
+                )}
+
+                {introStep < introSlides.length - 1 ? (
+                  <Button
+                    size="sm"
+                    onClick={() => setIntroStep(s => s + 1)}
+                    className="h-8 text-xs cursor-pointer gap-1 bg-foreground text-background hover:bg-foreground/90 shadow-xs"
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setShowIntroModal(false)
+                      onGetStarted()
+                    }}
+                    className="h-8 text-xs cursor-pointer gap-1 bg-foreground text-background hover:bg-foreground/90 shadow-xs"
+                  >
+                    <span>Open Workspace</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
