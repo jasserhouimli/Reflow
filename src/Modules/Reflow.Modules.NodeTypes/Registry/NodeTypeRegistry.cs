@@ -3,7 +3,7 @@ using Reflow.Modules.NodeTypes.Abstractions;
 namespace Reflow.Modules.NodeTypes.Registry;
 
 // Registry mapping node type identifiers to their execution handlers.
-public sealed class NodeTypeRegistry
+public sealed class NodeTypeRegistry : INodeTypeRegistry
 {
     private readonly Dictionary<string, INodeHandler> _handlers =
         new(StringComparer.OrdinalIgnoreCase);

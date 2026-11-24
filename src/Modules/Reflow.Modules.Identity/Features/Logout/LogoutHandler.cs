@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace Reflow.Modules.Identity.Features.Logout;
 
-public class LogoutHandler(TokenService tokenService)
+public class LogoutHandler(ITokenService tokenService)
 {
     public async Task<Result<LogoutResponse>> Handle(
         LogoutRequest request,

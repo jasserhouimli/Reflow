@@ -11,7 +11,7 @@ using Reflow.Modules.Triggers.Persistence;
 namespace Reflow.Modules.Triggers.Worker;
 
 public class SchedulerWorker(
-    IServiceProvider services,
+    IServiceScopeFactory scopeFactory,
     IConfiguration config,
     ILogger<SchedulerWorker> logger) : BackgroundService
 {
@@ -37,7 +37,7 @@ public class SchedulerWorker(
 
     private async Task FireDueAsync(CancellationToken ct)
     {
-        using var scope = services.CreateScope();
+        using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<TriggersDbContext>();
         var now = DateTime.UtcNow;
 
@@ -55,7 +55,7 @@ public class SchedulerWorker(
 
     public async Task FireOneAsync(Guid triggerId, CancellationToken ct)
     {
-        using var scope = services.CreateScope();
+        using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<TriggersDbContext>();
         var starter = scope.ServiceProvider.GetRequiredService<IPipelineRunStarter>();
         var monitor = scope.ServiceProvider.GetRequiredService<IRunMonitor>();

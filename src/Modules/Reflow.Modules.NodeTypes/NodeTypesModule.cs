@@ -38,7 +38,8 @@ public static class NodeTypesModule
         builder.Services.AddSingleton<INodeHandler, FileReadHandler>();
 
         // Registry automatically receives all registered handlers via constructor injection
-        builder.Services.AddSingleton<NodeTypeRegistry>();
+        builder.Services.AddSingleton<INodeTypeRegistry, NodeTypeRegistry>();
+        builder.Services.AddSingleton<NodeTypeRegistry>(sp => (NodeTypeRegistry)sp.GetRequiredService<INodeTypeRegistry>());
     }
 
     public static void MapEndpoints(WebApplication app)

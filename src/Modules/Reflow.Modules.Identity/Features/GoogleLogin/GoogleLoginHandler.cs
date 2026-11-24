@@ -10,7 +10,7 @@ namespace Reflow.Modules.Identity.Features.GoogleLogin;
 
 public class GoogleLoginHandler(
     UserManager<User> userManager,
-    TokenService tokenService,
+    ITokenService tokenService,
     IGoogleTokenValidator googleTokenValidator,
     ILogger<GoogleLoginHandler> logger)
 {

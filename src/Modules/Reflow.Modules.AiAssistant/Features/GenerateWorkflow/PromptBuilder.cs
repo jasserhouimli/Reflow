@@ -8,7 +8,7 @@ using Reflow.Modules.NodeTypes.Registry;
 namespace Reflow.Modules.AiAssistant.Features.GenerateWorkflow;
 
 // Generates the LLM system prompt dynamically from live NodeTypeRegistry schemas.
-public sealed class PromptBuilder(NodeTypeRegistry registry, IOptions<AiOptions> options)
+public sealed class PromptBuilder(INodeTypeRegistry registry, IOptions<AiOptions> options)
 {
     public string BuildSystemPrompt(IReadOnlyList<SourceFileRef> files)
     {

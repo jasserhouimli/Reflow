@@ -28,26 +28,21 @@ public sealed class LocalArtifactStore : IDataArtifactStore
         bool includeHeader = true,
         CancellationToken ct = default)
     {
-        var safeNode = MakeSafe(nodeId);
+        var safeNode = ArtifactPathHelper.MakeSafe(nodeId);
         var dir = Path.Combine(_root, runId.ToString("N"));
         Directory.CreateDirectory(dir);
 
-        string actualName, content, contentType;
+        string actualName, content;
         if (string.Equals(format, "csv", StringComparison.OrdinalIgnoreCase))
         {
-            actualName = string.IsNullOrWhiteSpace(fileName)
-                ? safeNode + ".csv" : EnsureExtension(MakeSafe(fileName), ".csv");
+            actualName = ArtifactPathHelper.BuildFileName(safeNode, "csv", fileName);
             content = _writer.ToCsv(frame, delimiter, includeHeader);
-            contentType = "text/csv";
         }
         else
         {
-            actualName = string.IsNullOrWhiteSpace(fileName)
-                ? safeNode + ".json" : EnsureExtension(MakeSafe(fileName), ".json");
+            actualName = ArtifactPathHelper.BuildFileName(safeNode, "json", fileName);
             content = _writer.ToJson(frame);
-            contentType = "application/json";
         }
-        _ = contentType;
 
         var bytes = Encoding.UTF8.GetBytes(content);
         if (bytes.Length > MaxArtifactBytes)
@@ -124,20 +119,7 @@ public sealed class LocalArtifactStore : IDataArtifactStore
             name);
     }
 
-    internal static string MakeSafe(string nodeId)
-    {
-        var sb = new StringBuilder();
-        foreach (var ch in nodeId)
-        {
-            if (char.IsLetterOrDigit(ch) || ch == '-' || ch == '_' || ch == '.')
-                sb.Append(ch);
-            else
-                sb.Append('_');
-        }
-        var safe = sb.ToString().Trim('_', '.');
-        return string.IsNullOrEmpty(safe) ? "node" : safe[..Math.Min(safe.Length, 80)];
-    }
+    internal static string MakeSafe(string nodeId) => ArtifactPathHelper.MakeSafe(nodeId);
 
-    private static string EnsureExtension(string name, string ext) =>
-        name.EndsWith(ext, StringComparison.OrdinalIgnoreCase) ? name : name + ext;
+    private static string EnsureExtension(string name, string ext) => ArtifactPathHelper.EnsureExtension(name, ext);
 }

@@ -3,28 +3,38 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using Reflow.Modules.Identity.Domain;
+using Reflow.Modules.Identity.Options;
 using Reflow.Modules.Identity.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Reflow.Modules.Identity.Services;
 
-public class TokenService
+public class TokenService : ITokenService
 {
-    private readonly IConfiguration _config;
+    private readonly JwtOptions _options;
     private readonly IdentityDbContext _db;
 
-    public TokenService(IConfiguration config, IdentityDbContext db)
+    public TokenService(IOptions<JwtOptions> options, IdentityDbContext db)
     {
-        _config = config;
+        _options = options.Value;
         _db = db;
+    }
+
+    // Protected constructor for test doubles
+    protected TokenService()
+    {
+        _options = new JwtOptions();
+        _db = null!;
     }
 
     public virtual string GenerateAccessToken(User user)
     {
         var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+            Encoding.UTF8.GetBytes(_options.Key));
 
         var claims = new[]
         {
@@ -33,11 +43,11 @@ public class TokenService
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
-        var expirationMinutes = int.Parse(_config["Jwt:AccessTokenExpirationMinutes"] ?? "60");
+        var expirationMinutes = _options.AccessTokenExpirationMinutes;
 
         var token = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"],
-            audience: _config["Jwt:Audience"],
+            issuer: _options.Issuer,
+            audience: _options.Audience,
             claims: claims,
             expires: DateTime.UtcNow.AddMinutes(expirationMinutes),
             signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
@@ -47,7 +57,7 @@ public class TokenService
 
     public virtual async Task<RefreshToken> GenerateRefreshTokenAsync(Guid userId, CancellationToken ct)
     {
-        var expirationDays = int.Parse(_config["Jwt:RefreshTokenExpirationDays"] ?? "7");
+        var expirationDays = _options.RefreshTokenExpirationDays;
 
         var refreshToken = new RefreshToken
         {

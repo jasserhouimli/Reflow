@@ -7,7 +7,7 @@ namespace Reflow.Modules.Identity.Features.RefreshToken;
 
 public class RefreshTokenHandler(
     UserManager<User> userManager,
-    TokenService tokenService)
+    ITokenService tokenService)
 {
     public async Task<Result<RefreshTokenResponse>> Handle(
         RefreshTokenRequest request,

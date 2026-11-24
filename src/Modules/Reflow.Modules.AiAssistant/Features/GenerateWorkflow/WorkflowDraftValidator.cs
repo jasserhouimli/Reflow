@@ -6,7 +6,7 @@ using Reflow.Modules.NodeTypes.Registry;
 namespace Reflow.Modules.AiAssistant.Features.GenerateWorkflow;
 
 // Validates untrusted LLM drafts against node types, config schemas, and acyclicity rules.
-public sealed class WorkflowDraftValidator(NodeTypeRegistry registry)
+public sealed class WorkflowDraftValidator(INodeTypeRegistry registry)
 {
     public const int MaxNodeIdLength = 40;
 

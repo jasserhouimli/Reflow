@@ -34,7 +34,7 @@ public static class ExecutionGraph
 }
 
 public class ExecutionWorker(
-    IServiceProvider services,
+    IServiceScopeFactory scopeFactory,
     WorkerWakeup wakeup,
     Realtime.IRunNotifier notifier,
     ILogger<ExecutionWorker> logger) : BackgroundService
@@ -65,7 +65,7 @@ public class ExecutionWorker(
     {
         try
         {
-            using var scope = services.CreateScope();
+            using var scope = scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<PipelineExecutionDbContext>();
             var stuck = await db.TaskRuns
                 .Where(t => t.Status == TaskRunStatus.Running)
@@ -95,7 +95,7 @@ public class ExecutionWorker(
 
     private async Task ProcessBatchAsync(CancellationToken ct)
     {
-        using var scope = services.CreateScope();
+        using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PipelineExecutionDbContext>();
         var now = DateTime.UtcNow;
 
@@ -122,9 +122,9 @@ public class ExecutionWorker(
 
     private async Task ExecuteTaskAsync(Guid taskId, CancellationToken ct)
     {
-        using var scope = services.CreateScope();
+        using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PipelineExecutionDbContext>();
-        var registry = scope.ServiceProvider.GetRequiredService<NodeTypeRegistry>();
+        var registry = scope.ServiceProvider.GetRequiredService<INodeTypeRegistry>();
         var writer = scope.ServiceProvider.GetRequiredService<IDataWriter>();
 
         var task = await db.TaskRuns.FirstOrDefaultAsync(t => t.Id == taskId, ct);
@@ -189,8 +189,8 @@ public class ExecutionWorker(
                 $"Node '{task.NodeId}' completed ({output.RowCount} rows)");
 
             await db.SaveChangesAsync(ct);
-            await UnblockDownstreamAsync(task.RunId, ct);
-            await FinalizeRunAsync(task.RunId, ct);
+            await UnblockDownstreamAsync(db, task.RunId, ct);
+            await FinalizeRunAsync(db, task.RunId, ct);
             await notifier.RunChangedAsync(task.RunId, ct);
             wakeup.Pulse();
         }
@@ -233,7 +233,7 @@ public class ExecutionWorker(
             AddLog(db, run.Id, task.Id, "Error",
                 $"Node '{task.NodeId}' failed: {message}");
             await db.SaveChangesAsync(ct);
-            await FailRunAsync(task.RunId, message, ct);
+            await FailRunAsync(db, task.RunId, message, ct);
             await notifier.RunChangedAsync(task.RunId, ct);
             wakeup.Pulse();
         }
@@ -266,10 +266,8 @@ public class ExecutionWorker(
         return frames;
     }
 
-    private async Task UnblockDownstreamAsync(Guid runId, CancellationToken ct)
+    private static async Task UnblockDownstreamAsync(PipelineExecutionDbContext db, Guid runId, CancellationToken ct)
     {
-        using var scope = services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<PipelineExecutionDbContext>();
         var run = await db.PipelineRuns.AsNoTracking().FirstOrDefaultAsync(r => r.Id == runId, ct);
         if (run is null)
             return;
@@ -289,10 +287,8 @@ public class ExecutionWorker(
         await db.SaveChangesAsync(ct);
     }
 
-    private async Task FinalizeRunAsync(Guid runId, CancellationToken ct)
+    private static async Task FinalizeRunAsync(PipelineExecutionDbContext db, Guid runId, CancellationToken ct)
     {
-        using var scope = services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<PipelineExecutionDbContext>();
         var run = await db.PipelineRuns.FirstOrDefaultAsync(r => r.Id == runId, ct);
         if (run is null || run.Status != PipelineRunStatus.Running)
             return;
@@ -307,10 +303,8 @@ public class ExecutionWorker(
         await db.SaveChangesAsync(ct);
     }
 
-    private async Task FailRunAsync(Guid runId, string error, CancellationToken ct)
+    private static async Task FailRunAsync(PipelineExecutionDbContext db, Guid runId, string error, CancellationToken ct)
     {
-        using var scope = services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<PipelineExecutionDbContext>();
         var run = await db.PipelineRuns.FirstOrDefaultAsync(r => r.Id == runId, ct);
         if (run is null || run.Status != PipelineRunStatus.Running)
             return;

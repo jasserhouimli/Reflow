@@ -74,7 +74,7 @@ public class GoogleLoginTests
 
     private sealed class TestTokenService : TokenService
     {
-        public TestTokenService() : base(new ConfigurationBuilder().Build(), null!) { }
+        public TestTokenService() : base() { }
 
         public override string GenerateAccessToken(User user) => "fake-jwt-token";
 

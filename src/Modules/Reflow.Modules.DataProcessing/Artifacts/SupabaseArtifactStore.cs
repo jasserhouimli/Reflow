@@ -9,7 +9,19 @@ namespace Reflow.Modules.DataProcessing.Artifacts;
 
 public sealed class SupabaseArtifactStore : IDataArtifactStore
 {
+    private const int MaxTrackedStatuses = 1000;
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _statusTracker = new();
+    private static readonly System.Collections.Concurrent.ConcurrentQueue<string> _statusKeys = new();
+
+    private static void TrackStatus(string key, string status)
+    {
+        _statusTracker[key] = status;
+        _statusKeys.Enqueue(key);
+        while (_statusKeys.Count > MaxTrackedStatuses && _statusKeys.TryDequeue(out var oldKey))
+        {
+            _statusTracker.TryRemove(oldKey, out _);
+        }
+    }
 
     private readonly IHttpClientFactory _clientFactory;
     private readonly IDataWriter _writer;
@@ -42,13 +54,11 @@ public sealed class SupabaseArtifactStore : IDataArtifactStore
         CancellationToken ct = default)
     {
         var isCsv = string.Equals(format, "csv", StringComparison.OrdinalIgnoreCase);
-        var safeNode = MakeSafe(nodeId);
-        var actualName = string.IsNullOrWhiteSpace(fileName)
-            ? safeNode + (isCsv ? ".csv" : ".json")
-            : (isCsv ? EnsureExtension(MakeSafe(fileName), ".csv") : EnsureExtension(MakeSafe(fileName), ".json"));
+        var safeNode = ArtifactPathHelper.MakeSafe(nodeId);
+        var actualName = ArtifactPathHelper.BuildFileName(safeNode, format, fileName);
 
         var content = isCsv ? _writer.ToCsv(frame, delimiter, includeHeader) : _writer.ToJson(frame);
-        var contentType = isCsv ? "text/csv" : "application/json";
+        var contentType = ArtifactPathHelper.GetContentType(format);
         var bytes = Encoding.UTF8.GetBytes(content);
         var checksum = Convert.ToHexString(SHA256.HashData(bytes));
 
@@ -66,7 +76,7 @@ public sealed class SupabaseArtifactStore : IDataArtifactStore
         if (!string.IsNullOrWhiteSpace(_options.SupabaseUrl) && !string.IsNullOrWhiteSpace(_options.SupabaseKey))
         {
             var trackerKey = $"{runId:N}:{nodeId}";
-            _statusTracker[trackerKey] = "uploading";
+            TrackStatus(trackerKey, "uploading");
 
             var baseUrl = SanitizeBaseUrl(_options.SupabaseUrl);
             var bucket = GetBucket();
@@ -89,18 +99,18 @@ public sealed class SupabaseArtifactStore : IDataArtifactStore
                     if (!response.IsSuccessStatusCode)
                     {
                         var errorBody = await response.Content.ReadAsStringAsync();
-                        _statusTracker[trackerKey] = "failed";
+                        TrackStatus(trackerKey, "failed");
                         _logger.LogWarning("Supabase Storage upload failed with {StatusCode}: {Body}", response.StatusCode, errorBody);
                     }
                     else
                     {
-                        _statusTracker[trackerKey] = "ready";
+                        TrackStatus(trackerKey, "ready");
                         _logger.LogInformation("Successfully uploaded artifact {ObjectPath} to Supabase bucket '{Bucket}'", objectPath, bucket);
                     }
                 }
                 catch (Exception ex)
                 {
-                    _statusTracker[trackerKey] = "failed";
+                    TrackStatus(trackerKey, "failed");
                     _logger.LogWarning(ex, "Failed to upload artifact to Supabase Storage for run {RunId}", runId);
                 }
             });
@@ -226,9 +236,7 @@ public sealed class SupabaseArtifactStore : IDataArtifactStore
         return s.TrimEnd('/');
     }
 
-    private static string MakeSafe(string s) =>
-        new string(s.Select(c => char.IsLetterOrDigit(c) || c == '-' || c == '_' ? c : '_').ToArray());
+    private static string MakeSafe(string s) => ArtifactPathHelper.MakeSafe(s);
 
-    private static string EnsureExtension(string name, string ext) =>
-        name.EndsWith(ext, StringComparison.OrdinalIgnoreCase) ? name : name + ext;
+    private static string EnsureExtension(string name, string ext) => ArtifactPathHelper.EnsureExtension(name, ext);
 }

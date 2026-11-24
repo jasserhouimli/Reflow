@@ -9,7 +9,7 @@ public static class ListNodeTypesEndpoint
     public static void Map(WebApplication app)
     {
         app.MapGet("/api/node-types", (
-            NodeTypeRegistry registry) =>
+            INodeTypeRegistry registry) =>
         {
             return Results.Ok(registry.Definitions());
         }).WithName("ListNodeTypes");

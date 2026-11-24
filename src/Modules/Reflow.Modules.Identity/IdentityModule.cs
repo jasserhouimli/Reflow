@@ -10,6 +10,7 @@ using Reflow.Modules.Identity.Features.GoogleLogin;
 using Reflow.Modules.Identity.Features.GetUser;
 using Reflow.Modules.Identity.Features.Logout;
 using Reflow.Modules.Identity.Features.RefreshToken;
+using Reflow.Modules.Identity.Options;
 using Reflow.Modules.Identity.Persistence;
 using Reflow.Modules.Identity.Services;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,9 @@ public static class IdentityModule
     public static void Register(WebApplicationBuilder builder)
     {
         var connectionString = builder.Configuration.GetConnectionString("Reflow");
+
+        builder.Services.Configure<JwtOptions>(
+            builder.Configuration.GetSection(JwtOptions.SectionName));
 
         builder.Services.AddDbContext<IdentityDbContext>(options =>
             options.UseNpgsql(connectionString, b => b.MigrationsAssembly("Reflow.Api")));
@@ -39,7 +43,8 @@ public static class IdentityModule
 
         builder.Services.AddValidatorsFromAssemblyContaining<IdentityDbContext>();
         builder.Services.AddScoped<IdentityDbContext>();
-        builder.Services.AddScoped<TokenService>();
+        builder.Services.AddScoped<ITokenService, TokenService>();
+        builder.Services.AddScoped<TokenService>(sp => (TokenService)sp.GetRequiredService<ITokenService>());
 
         builder.Services.AddHttpClient<IGoogleTokenValidator, GoogleTokenValidator>();
         builder.Services.AddScoped<GoogleLoginHandler>();

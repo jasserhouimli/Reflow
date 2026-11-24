@@ -8,7 +8,7 @@ namespace Reflow.Modules.Identity.Features.Login;
 public class LoginHandler(
     UserManager<User> userManager,
     SignInManager<User> signInManager,
-    TokenService tokenService)
+    ITokenService tokenService)
 {
     public async Task<Result<LoginResponse>> Handle(
         LoginRequest request,
